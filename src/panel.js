@@ -21,6 +21,38 @@ function findTarget() {
     return document.getElementById('send_textarea');
 }
 
+/**
+ * Resolve the correct mount point for the panel.
+ * SillyTavern's send-form is structured as:
+ *   #form_sheld
+ *     └── #send_form
+ *           ├── #file_form
+ *           └── #nonQRFormItems   (flex row: [options][textarea][send])
+ *
+ * We want the panel to sit ABOVE #nonQRFormItems (so above the input row)
+ * but INSIDE #send_form, mirroring where Quick Reply's bar lives.
+ * This avoids breaking the flex row of #nonQRFormItems.
+ *
+ * Returns { container, anchor } where the panel will be inserted as
+ * `container.insertBefore(panel, anchor)`. Anchor may be null to append.
+ */
+function resolveMountSlot(target) {
+    if (!target) return null;
+    const nonQR = document.getElementById('nonQRFormItems');
+    const sendForm = document.getElementById('send_form');
+    if (sendForm && nonQR && nonQR.parentElement === sendForm) {
+        return { container: sendForm, anchor: nonQR };
+    }
+    // Fallback A: above #send_form inside #form_sheld.
+    const sheld = document.getElementById('form_sheld');
+    if (sheld && sendForm && sendForm.parentElement === sheld) {
+        return { container: sheld, anchor: sendForm };
+    }
+    // Fallback B (last resort): the textarea's parent, before the textarea itself.
+    // This is the legacy behavior; only used when the canonical structure isn't present.
+    return { container: target.parentElement, anchor: target };
+}
+
 /** Detect the conflicting reference script and warn once. */
 function detectConflictAndWarn() {
     try {
@@ -245,6 +277,8 @@ function mountIfNeeded() {
     if (!target) return false;
 
     const wantShow = settings.panel?.show !== false;
+    const slot = resolveMountSlot(target);
+    if (!slot?.container) return false;
 
     // Already mounted?
     if (STATE.panelEl?.isConnected) {
@@ -253,9 +287,14 @@ function mountIfNeeded() {
             STATE.panelEl = null;
             return true;
         }
-        // Make sure it's still positioned right above target
-        if (STATE.panelEl.nextElementSibling !== target) {
-            target.parentElement?.insertBefore(STATE.panelEl, target);
+        // Make sure it's still positioned in the canonical slot.
+        const expectedNext = slot.anchor;
+        const expectedParent = slot.container;
+        if (
+            STATE.panelEl.parentElement !== expectedParent ||
+            STATE.panelEl.nextElementSibling !== expectedNext
+        ) {
+            expectedParent.insertBefore(STATE.panelEl, expectedNext || null);
         }
         render(STATE.panelEl);
         return true;
@@ -264,7 +303,7 @@ function mountIfNeeded() {
     if (!wantShow) return true;
 
     const panel = buildPanelSkeleton();
-    target.parentElement?.insertBefore(panel, target);
+    slot.container.insertBefore(panel, slot.anchor || null);
     STATE.panelEl = panel;
     STATE.targetEl = target;
     render(panel);

@@ -2,6 +2,21 @@
 
 All notable changes to ⊹ ACE INPUT DECK ⊹ are documented here.
 
+## 1.0.1 — Mount-point fix
+
+### Fixed
+- Panel was inserted as a sibling of `#send_textarea` *inside* `#nonQRFormItems`,
+  which broke the input row's flex layout (options button + textarea + send button
+  no longer aligned). Panel now mounts **above `#nonQRFormItems` inside `#send_form`**,
+  matching where Quick Reply's bar lives. Falls back to `#form_sheld` if the
+  canonical structure isn't present, and to the legacy spot only as a last resort.
+- Panel header trimmed to a compact 20 px toggle pill (was a 28 px strip).
+- Button row is now a single horizontal scroll strip (28 px buttons, 4 px gap),
+  matching Quick Reply density. Settings drawer controls keep full 44 pt tap
+  targets on touch devices.
+- Undo pill anchors to the panel head's right edge instead of the panel bottom,
+  so it doesn't briefly inflate the panel height when shown.
+
 ## 1.0.0 — Initial release
 
 ### Features

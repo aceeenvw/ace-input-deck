@@ -28,52 +28,60 @@
 }
 
 /* ════════════════════════════════════════════════════════════════
-   Panel — the collapsible button strip above #send_textarea
+   Panel — sits inside #send_form, above #nonQRFormItems.
+   Compact, full-width, doesn't disturb the input row's flex layout.
    ════════════════════════════════════════════════════════════════ */
 .aid--panel {
     display: flex;
     flex-direction: column;
-    margin: 0 0 6px 0;
-    padding: 0;
+    flex: 0 0 auto;          /* never grow/shrink inside #send_form's flex column */
+    align-self: stretch;     /* full width across send-form */
+    margin: 0;
+    padding: 2px 0 4px 0;
     background: transparent;
-    border-radius: var(--aid-radius);
+    border-radius: 0;
     color: var(--aid-fg);
     box-sizing: border-box;
     width: 100%;
     max-width: 100%;
     contain: layout paint;
+    position: relative;       /* for undo-pill anchor */
+    z-index: 1;
 }
 
+/* Compact header strip — small toggle pill, doesn't take real height when collapsed. */
 .aid--panel-head {
     display: flex;
     align-items: center;
-    justify-content: flex-start;
-    height: 28px;
-    padding: 0 4px;
+    justify-content: space-between;
+    min-height: 0;
+    padding: 0 2px 2px;
     user-select: none;
 }
 
 .aid--panel-toggle {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 4px;
     background: transparent;
     border: none;
     color: var(--aid-fg-muted);
-    font-size: 11px;
-    letter-spacing: 0.06em;
+    font-size: 10px;
+    letter-spacing: 0.08em;
     text-transform: uppercase;
     cursor: pointer;
-    padding: 4px 8px;
+    padding: 2px 6px;
     border-radius: var(--aid-radius-sm);
     transition: background var(--aid-anim), color var(--aid-anim);
-    min-height: 28px;
+    min-height: 20px;
+    line-height: 1;
 }
 .aid--panel-toggle:hover { color: var(--aid-fg); background: var(--aid-bg-elev); }
 .aid--panel-toggle:focus-visible { outline: 2px solid var(--aid-accent); outline-offset: 2px; }
 
 .aid--panel-chev {
     transition: transform var(--aid-anim);
+    font-size: 10px;
 }
 .aid--collapsed .aid--panel-chev {
     transform: rotate(-90deg);
@@ -82,14 +90,15 @@
 .aid--panel-label {
     font-weight: 600;
     color: var(--aid-fg-muted);
+    font-size: 10px;
 }
 
 .aid--panel-body {
     display: flex;
     flex-direction: column;
-    gap: var(--aid-gap);
+    gap: 4px;
     overflow: hidden;
-    max-height: 220px;
+    max-height: 200px;
     opacity: 1;
     transition: max-height var(--aid-anim), opacity var(--aid-anim);
 }
@@ -98,30 +107,34 @@
     opacity: 0;
     pointer-events: none;
 }
+/* When collapsed, also remove the head's bottom padding so footprint is minimal. */
+.aid--collapsed .aid--panel-head { padding-bottom: 0; }
+.aid--collapsed { padding-bottom: 2px; }
 
 /* Group chips */
 .aid--group-chips {
     display: flex;
     flex-wrap: nowrap;
-    gap: 6px;
+    gap: 4px;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 2px 4px;
-    scrollbar-width: thin;
+    padding: 0 2px;
+    scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x proximity;
 }
+.aid--group-chips::-webkit-scrollbar { display: none; }
 .aid--chip {
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
-    height: 26px;
-    padding: 0 10px;
+    height: 22px;
+    padding: 0 8px;
     border-radius: var(--aid-radius-pill);
     border: 1px solid var(--aid-border);
     background: transparent;
     color: var(--aid-fg-muted);
-    font-size: 12px;
+    font-size: 11px;
     line-height: 1;
     cursor: pointer;
     scroll-snap-align: start;
@@ -136,34 +149,33 @@
 }
 .aid--chip:focus-visible { outline: 2px solid var(--aid-accent); outline-offset: 2px; }
 
-/* Button row */
+/* Button row — single horizontal scroll strip, compact like a quick-reply bar. */
 .aid--btn-row {
     display: flex;
     flex-wrap: nowrap;
-    gap: var(--aid-gap);
+    gap: 4px;
     overflow-x: auto;
     overflow-y: hidden;
-    padding: 4px 4px calc(env(safe-area-inset-bottom, 0) + 4px);
+    padding: 0 2px 2px;
     scroll-snap-type: x proximity;
     -webkit-overflow-scrolling: touch;
-    scrollbar-width: thin;
+    scrollbar-width: none;
 }
-.aid--btn-row::-webkit-scrollbar { height: 4px; }
-.aid--btn-row::-webkit-scrollbar-thumb { background: var(--aid-border); border-radius: 2px; }
+.aid--btn-row::-webkit-scrollbar { display: none; }
 
 .aid--btn {
     flex: 0 0 auto;
-    min-height: var(--aid-tap-min);
-    min-width: var(--aid-tap-min);
-    padding: 6px 14px;
+    min-height: 28px;
+    min-width: 28px;
+    padding: 3px 10px;
     background: var(--aid-bg);
     color: var(--aid-fg);
     border: 1px solid var(--aid-border);
-    border-radius: var(--aid-radius);
-    font-size: 14px;
+    border-radius: var(--aid-radius-sm);
+    font-size: 13px;
     font-family: inherit;
     cursor: pointer;
-    box-shadow: var(--aid-shadow);
+    box-shadow: none;
     scroll-snap-align: start;
     transition: transform 80ms ease-out, background var(--aid-anim), border-color var(--aid-anim);
     display: inline-flex;
@@ -184,26 +196,27 @@
     padding: 8px;
 }
 
-/* Undo pill */
+/* Undo pill — anchors to the panel head's right edge, doesn't expand panel height. */
 .aid--undo-pill {
     position: absolute;
-    right: 12px;
-    bottom: 6px;
+    right: 4px;
+    top: -2px;
     z-index: 5;
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 12px;
+    gap: 4px;
+    padding: 2px 8px;
     border-radius: var(--aid-radius-pill);
     border: 1px solid var(--aid-border);
     background: var(--aid-bg);
     color: var(--aid-fg);
-    font-size: 12px;
+    font-size: 11px;
+    line-height: 1;
+    min-height: 20px;
     cursor: pointer;
     box-shadow: var(--aid-shadow);
     animation: aidUndoIn var(--aid-anim) both;
 }
-.aid--panel { position: relative; }
 @keyframes aidUndoIn {
     from { opacity: 0; transform: translateY(4px); }
     to   { opacity: 1; transform: translateY(0); }
@@ -663,12 +676,19 @@
 }
 
 @media (pointer: coarse) {
-    .aid--btn { min-height: 44px; min-width: 44px; }
-    .aid--ghost-btn, .aid--primary-btn, .aid--seg-btn, .aid--icon-btn { min-height: 44px; }
-    .aid--switch { width: 50px; height: 28px; }
-    .aid--switch-thumb { width: 24px; height: 24px; }
-    .aid--switch input:checked ~ .aid--switch-track .aid--switch-thumb,
-    .aid--switch input:checked + .aid--switch-track .aid--switch-thumb {
+    /* Panel buttons stay tap-friendly without inflating the form footprint. */
+    .aid--panel .aid--btn { min-height: 36px; padding: 4px 12px; }
+    .aid--panel .aid--chip { height: 26px; padding: 0 10px; }
+
+    /* Settings drawer controls: full 44pt for comfortable editing on touch. */
+    .aid--settings .aid--ghost-btn,
+    .aid--settings .aid--primary-btn,
+    .aid--settings .aid--seg-btn,
+    .aid--settings .aid--icon-btn { min-height: 44px; }
+    .aid--settings .aid--switch { width: 50px; height: 28px; }
+    .aid--settings .aid--switch-thumb { width: 24px; height: 24px; }
+    .aid--settings .aid--switch input:checked ~ .aid--switch-track .aid--switch-thumb,
+    .aid--settings .aid--switch input:checked + .aid--switch-track .aid--switch-thumb {
         transform: translateX(22px);
     }
 }
