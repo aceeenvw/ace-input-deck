@@ -53,10 +53,9 @@ function buildToolbar() {
 }
 
 function buildRow(btn) {
-    const row = el('div', { class: 'aid--erow', dataset: { aidRowId: btn.id } });
+    const row = el('div', { class: 'aid--erow', dataset: { aidRowId: btn.id }, attrs: { tabindex: '0' } });
     row.draggable = true;
 
-    // Drag handle
     const handle = el('span', {
         class: 'aid--drag-handle',
         attrs: { 'aria-label': t('aid.a11y.drag_handle'), title: t('aid.a11y.drag_handle'), 'data-aid-drag-handle': '' },
@@ -64,7 +63,6 @@ function buildRow(btn) {
     handle.appendChild(el('i', { class: 'fa-solid fa-grip-vertical', attrs: { 'aria-hidden': 'true' } }));
     row.appendChild(handle);
 
-    // Enabled toggle
     const sw = el('label', { class: 'aid--erow-toggle' });
     const inp = el('input', { type: 'checkbox', dataset: { aidRowEnabled: '' } });
     inp.checked = btn.enabled !== false;
@@ -74,14 +72,13 @@ function buildRow(btn) {
     sw.append(inp, trk);
     row.appendChild(sw);
 
-    // Face + description (textContent only)
+    // Face / description / group rendered via textContent only (XSS-safe).
     const meta = el('div', { class: 'aid--erow-meta' });
     meta.appendChild(el('span', { class: 'aid--erow-face' }, btn.name));
     if (btn.description) meta.appendChild(el('span', { class: 'aid--erow-desc' }, btn.description));
     if (btn.group) meta.appendChild(el('span', { class: 'aid--erow-group' }, btn.group));
     row.appendChild(meta);
 
-    // Action buttons
     const actions = el('div', { class: 'aid--erow-actions' });
     const btnEdit = el('button', { type: 'button', class: 'aid--icon-btn', dataset: { aidRowAction: 'edit' }, attrs: { title: t('aid.editor.action_edit'), 'aria-label': t('aid.editor.action_edit') } });
     btnEdit.appendChild(el('i', { class: 'fa-solid fa-pen' }));
@@ -113,7 +110,6 @@ function buildEditForm(btn) {
     const group = el('input', { type: 'text', class: 'aid--input', value: btn.group, attrs: { maxlength: '32', placeholder: t('aid.editor.field_group_placeholder'), list: 'aid--group-list' }, dataset: { aidEditField: 'group' } });
     const cursor = el('input', { type: 'number', class: 'aid--input aid--input-num', value: String(btn.cursor_position | 0), attrs: { min: '0', step: '1' }, dataset: { aidEditField: 'cursor_position' } });
 
-    // Insert position segmented
     const insWrap = el('div', { class: 'aid--seg', attrs: { role: 'radiogroup' } });
     const mkSeg = (value, labelKey, icon) => {
         const b = el('button', { type: 'button', class: 'aid--seg-btn', dataset: { aidEditSeg: value } });
@@ -127,7 +123,7 @@ function buildEditForm(btn) {
         mkSeg('append',  'aid.editor.insert_append',  'fa-arrow-down'),
     );
 
-    // Preview line: visualizes cursor position.
+    // Live cursor-position preview: shows where the caret will land on insert.
     const preview = el('div', { class: 'aid--preview' });
     const updatePreview = () => {
         const c = content.value;
@@ -146,10 +142,8 @@ function buildEditForm(btn) {
     content.addEventListener('input', updatePreview);
     cursor.addEventListener('input', updatePreview);
 
-    // Validation message area
     const msgs = el('div', { class: 'aid--edit-msgs', attrs: { 'aria-live': 'polite' } });
 
-    // Actions
     const actions = el('div', { class: 'aid--edit-actions' });
     const save = el('button', { type: 'button', class: 'aid--primary-btn', dataset: { aidEditAction: 'save' } });
     save.append(el('i', { class: 'fa-solid fa-check' }), el('span', { i18n: 'aid.editor.action_save' }, t('aid.editor.action_save')));
@@ -182,7 +176,7 @@ function render() {
 
     _editorRoot.replaceChildren();
 
-    // Datalist for groups (autocomplete)
+    // Datalist powers the group field's autocomplete.
     const groupsSet = new Set();
     for (const b of buttons) if (b.group) groupsSet.add(b.group);
     const dl = el('datalist', { id: 'aid--group-list' });
@@ -207,6 +201,21 @@ function render() {
 
     const cnt = _editorRoot.querySelector('[data-aid-count]');
     if (cnt) cnt.textContent = t('aid.settings.buttons_count', { count: buttons.length });
+
+    // Autofocus the first editable field of any visible edit form, and scroll
+    // the form into view. Helpful both for "Add" and "Edit" actions.
+    if (_editingId) {
+        requestAnimationFrame(() => {
+            const form = _editorRoot.querySelector('.aid--edit-form');
+            if (!form) return;
+            try { form.scrollIntoView({ block: 'nearest', behavior: 'smooth' }); } catch { /* ignore */ }
+            const firstInput = form.querySelector('input, textarea, select');
+            if (firstInput && typeof firstInput.focus === 'function') {
+                firstInput.focus();
+                if (firstInput.select && firstInput.value) firstInput.select();
+            }
+        });
+    }
 }
 
 function findRowEl(target) {
@@ -262,11 +271,48 @@ function cancelEdit() {
 function attachHandlers() {
     if (!_editorRoot) return;
 
+    // Clear validation messages as soon as the user types in any edit field.
+    // Avoids stale errors lingering after a fix.
+    _editorRoot.addEventListener('input', (ev) => {
+        const node = ev.target;
+        if (!(node instanceof HTMLElement)) return;
+        if (!node.hasAttribute('data-aid-edit-field')) return;
+        const form = node.closest('[data-aid-edit-form-id]');
+        const msgs = form?.querySelector('.aid--edit-msgs');
+        if (msgs && msgs.firstChild) msgs.replaceChildren();
+    });
+
+    // Keyboard reorder: Alt+ArrowUp / Alt+ArrowDown on a focused row.
+    // Accessible alternative to drag-and-drop (which is mouse/touch only).
+    _editorRoot.addEventListener('keydown', (ev) => {
+        if (!ev.altKey) return;
+        if (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') return;
+        const target = ev.target instanceof Element ? ev.target : null;
+        const rowEl = target?.closest('[data-aid-row-id]');
+        if (!rowEl) return;
+        ev.preventDefault();
+        const id = rowEl.getAttribute('data-aid-row-id');
+        const settings = getSettings();
+        const list = (settings.buttons || []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+        const idx = list.findIndex(b => b.id === id);
+        if (idx < 0) return;
+        const dir = ev.key === 'ArrowUp' ? -1 : 1;
+        const swapWith = idx + dir;
+        if (swapWith < 0 || swapWith >= list.length) return;
+        const [moved] = list.splice(idx, 1);
+        list.splice(swapWith, 0, moved);
+        saveSettings({ buttons: list.map((b, i) => ({ ...b, order: i })) });
+        // Restore focus to the moved row after re-render.
+        requestAnimationFrame(() => {
+            const restored = _editorRoot.querySelector(`[data-aid-row-id="${id}"]`);
+            if (restored && typeof restored.focus === 'function') restored.focus();
+        });
+    });
+
     _editorRoot.addEventListener('click', async (ev) => {
         const target = ev.target instanceof Element ? ev.target : null;
         if (!target) return;
 
-        // Toolbar add
         const toolAct = target.closest('[data-aid-editor-action]');
         if (toolAct?.getAttribute('data-aid-editor-action') === 'add') {
             ev.preventDefault();
@@ -275,7 +321,6 @@ function attachHandlers() {
             return;
         }
 
-        // Edit form actions
         const editAct = target.closest('[data-aid-edit-action]');
         if (editAct) {
             ev.preventDefault();
@@ -286,7 +331,6 @@ function attachHandlers() {
             return;
         }
 
-        // Edit form segmented buttons
         const seg = target.closest('[data-aid-edit-seg]');
         if (seg) {
             ev.preventDefault();
@@ -299,7 +343,6 @@ function attachHandlers() {
             return;
         }
 
-        // Row actions
         const rowAct = target.closest('[data-aid-row-action]');
         if (rowAct) {
             ev.preventDefault();
@@ -329,7 +372,6 @@ function attachHandlers() {
         }
     });
 
-    // Toggle row enabled checkbox
     _editorRoot.addEventListener('change', (ev) => {
         const node = ev.target;
         if (!(node instanceof HTMLInputElement)) return;
@@ -342,7 +384,7 @@ function attachHandlers() {
         saveSettings({ buttons: next });
     });
 
-    // Drag-and-drop reorder
+    // HTML5 drag-and-drop (desktop / mouse).
     _editorRoot.addEventListener('dragstart', (ev) => {
         const rowEl = findRowEl(ev.target);
         if (!rowEl) return;
@@ -382,6 +424,65 @@ function attachHandlers() {
         list.splice(toIdx, 0, moved);
         saveSettings({ buttons: list.map((b, i) => ({ ...b, order: i })) });
     });
+
+    // Touch / pen reorder via Pointer Events (HTML5 DnD doesn't fire on touch).
+    // Long-press the drag handle (~250 ms) to start, then pointermove highlights
+    // the row under the finger, pointerup commits the swap.
+    let touchDrag = null;
+    _editorRoot.addEventListener('pointerdown', (ev) => {
+        if (ev.pointerType === 'mouse') return;
+        const handle = ev.target instanceof Element ? ev.target.closest('[data-aid-drag-handle]') : null;
+        if (!handle) return;
+        const rowEl = findRowEl(handle);
+        if (!rowEl) return;
+        ev.preventDefault();
+        const id = rowEl.getAttribute('data-aid-row-id');
+        touchDrag = {
+            id,
+            rowEl,
+            startTimer: setTimeout(() => {
+                if (!touchDrag) return;
+                touchDrag.active = true;
+                rowEl.classList.add('aid--erow-dragging');
+                try { handle.setPointerCapture?.(ev.pointerId); } catch { /* ignore */ }
+            }, 250),
+            active: false,
+            pointerId: ev.pointerId,
+        };
+    });
+    _editorRoot.addEventListener('pointermove', (ev) => {
+        if (!touchDrag?.active) return;
+        ev.preventDefault();
+        const targetEl = document.elementFromPoint(ev.clientX, ev.clientY);
+        const overRow = targetEl ? targetEl.closest?.('[data-aid-row-id]') : null;
+        _editorRoot.querySelectorAll('.aid--erow-over').forEach(n => n.classList.remove('aid--erow-over'));
+        if (overRow && overRow.getAttribute('data-aid-row-id') !== touchDrag.id) {
+            overRow.classList.add('aid--erow-over');
+            touchDrag.overId = overRow.getAttribute('data-aid-row-id');
+        } else {
+            touchDrag.overId = null;
+        }
+    });
+    const endTouchDrag = () => {
+        if (!touchDrag) return;
+        clearTimeout(touchDrag.startTimer);
+        if (touchDrag.active && touchDrag.overId && touchDrag.overId !== touchDrag.id) {
+            const settings = getSettings();
+            const list = (settings.buttons || []).slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
+            const fromIdx = list.findIndex(b => b.id === touchDrag.id);
+            const toIdx = list.findIndex(b => b.id === touchDrag.overId);
+            if (fromIdx >= 0 && toIdx >= 0) {
+                const [moved] = list.splice(fromIdx, 1);
+                list.splice(toIdx, 0, moved);
+                saveSettings({ buttons: list.map((b, i) => ({ ...b, order: i })) });
+            }
+        }
+        touchDrag.rowEl?.classList.remove('aid--erow-dragging');
+        _editorRoot.querySelectorAll('.aid--erow-over').forEach(n => n.classList.remove('aid--erow-over'));
+        touchDrag = null;
+    };
+    _editorRoot.addEventListener('pointerup', endTouchDrag);
+    _editorRoot.addEventListener('pointercancel', endTouchDrag);
 }
 
 export function mountButtonsEditor(host) {

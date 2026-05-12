@@ -1,5 +1,5 @@
-// Settings: persistent state + drawer card UI (locale, panel, presets, I/O, about).
-// Buttons CRUD lives in buttons-editor.js but mounts inside this card.
+// Persistent settings state + the Extensions-tab drawer card UI.
+// Buttons CRUD lives in buttons-editor.js and is mounted inside this card.
 
 import { t, setLocale, detectLocale, getAvailableLocales, onLocaleChange } from './i18n.js';
 import { getDefaultButtons, PRESETS, instantiatePreset } from './presets.js';
@@ -15,14 +15,13 @@ export const DEFAULTS = Object.freeze({
     locale: 'en-us',
     panel: {
         show: true,
-        collapsed: false,
-        rememberCollapsed: true,
+        collapsed: false,           // current collapsed state, always persisted
         recentEnabled: true,
     },
-    buttons: [],          // populated on first install via initBootstrap()
+    buttons: [],                    // populated on first install via initBootstrap()
     recentIds: [],
     scopeWarnedAboutInputAssistant: false,
-    _migrated: 1,
+    _migrated: 2,                   // bumped in 1.0.2: dropped panel.rememberCollapsed
 });
 
 const LISTENERS = new Set();
@@ -181,8 +180,6 @@ function buildPanelSection() {
         ]),
         el('div', { class: 'aid--card-body aid--toggle-list' }, [
             buildToggleRow('panel.show', 'aid.settings.panel_show'),
-            buildToggleRow('panel.collapsed', 'aid.settings.panel_default_collapsed'),
-            buildToggleRow('panel.rememberCollapsed', 'aid.settings.panel_remember_state'),
             buildToggleRow('panel.recentEnabled', 'aid.settings.panel_recent_enabled'),
         ]),
     );
@@ -230,7 +227,6 @@ function buildPresetsSection() {
     }
     body.appendChild(chipRow);
 
-    // Mode + Load
     const ctrl = el('div', { class: 'aid--preset-ctrl' });
     const modeWrap = el('div', { class: 'aid--seg', attrs: { role: 'radiogroup' } });
     const modeAppend = el('button', {
@@ -305,7 +301,6 @@ function buildSettingsTree() {
     ]);
     const content = el('div', { class: 'inline-drawer-content' });
 
-    // Brand strip + reset
     const headStrip = el('div', { class: 'aid--settings-head' });
     const brand = el('div', { class: 'aid--settings-brand' });
     brand.append(el('i', { class: 'fa-solid fa-wand-magic-sparkles' }), el('span', { i18n: 'aid.settings.subtitle' }, t('aid.settings.subtitle')));
@@ -357,7 +352,6 @@ function confirmAsync(message) {
 function attachHandlers(root) {
     let presetMode = 'append';
 
-    // Toggle inputs (checkboxes, selects)
     root.addEventListener('change', (ev) => {
         const node = ev.target;
         if (!(node instanceof HTMLElement)) return;
@@ -373,12 +367,10 @@ function attachHandlers(root) {
         }
     });
 
-    // Click handlers
     root.addEventListener('click', async (ev) => {
         const target = ev.target instanceof Element ? ev.target : null;
         if (!target) return;
 
-        // Preset mode segmented
         const seg = target.closest('[data-aid-preset-mode]');
         if (seg) {
             ev.preventDefault();
@@ -390,7 +382,6 @@ function attachHandlers(root) {
             return;
         }
 
-        // Preset chip selection
         const chip = target.closest('[data-aid-preset]');
         if (chip) {
             ev.preventDefault();
@@ -446,7 +437,6 @@ function attachHandlers(root) {
         }
     });
 
-    // File picker change
     const fileInput = root.querySelector('[data-aid-import-file]');
     if (fileInput) {
         fileInput.addEventListener('change', async () => {

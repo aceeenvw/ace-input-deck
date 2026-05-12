@@ -9,16 +9,15 @@
     "aid.settings.locale_auto": "Automatic",
 
     "aid.settings.section_panel": "Panel",
-    "aid.settings.panel_show": "Show panel above input",
-    "aid.settings.panel_default_collapsed": "Collapsed by default",
-    "aid.settings.panel_remember_state": "Remember last state",
+    "aid.settings.panel_show": "Enable button panel",
     "aid.settings.panel_recent_enabled": "Show \u201CRecent\u201D group",
+    "aid.panel.no_buttons_cta": "Open settings to add buttons",
 
     "aid.settings.section_buttons": "Buttons",
     "aid.settings.buttons_add": "Add button",
     "aid.settings.buttons_empty": "No buttons yet. Add one or load a preset.",
     "aid.settings.buttons_count": "{count} buttons",
-    "aid.settings.buttons_drag_hint": "Drag the handle to reorder",
+    "aid.settings.buttons_drag_hint": "Drag handle to reorder \u00B7 Alt+\u2191/\u2193 on a row",
 
     "aid.editor.field_name": "Face (display text)",
     "aid.editor.field_description": "Description (tooltip)",

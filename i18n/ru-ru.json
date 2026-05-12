@@ -9,16 +9,15 @@
     "aid.settings.locale_auto": "Автоматически",
 
     "aid.settings.section_panel": "Панель",
-    "aid.settings.panel_show": "Показывать панель над вводом",
-    "aid.settings.panel_default_collapsed": "Свернута по умолчанию",
-    "aid.settings.panel_remember_state": "Запоминать состояние",
+    "aid.settings.panel_show": "Включить панель кнопок",
     "aid.settings.panel_recent_enabled": "Показывать группу «Недавние»",
+    "aid.panel.no_buttons_cta": "Откройте настройки, чтобы добавить кнопки",
 
     "aid.settings.section_buttons": "Кнопки",
     "aid.settings.buttons_add": "Добавить кнопку",
     "aid.settings.buttons_empty": "Кнопок пока нет. Добавьте кнопку или загрузите пресет.",
     "aid.settings.buttons_count": "{count} кнопок",
-    "aid.settings.buttons_drag_hint": "Перетащите ручку, чтобы изменить порядок",
+    "aid.settings.buttons_drag_hint": "Перетащите ручку \u00B7 Alt+\u2191/\u2193 на строке",
 
     "aid.editor.field_name": "Надпись (отображаемый текст)",
     "aid.editor.field_description": "Описание (подсказка)",

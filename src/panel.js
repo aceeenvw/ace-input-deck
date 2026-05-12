@@ -1,5 +1,5 @@
-// Collapsible button panel mounted directly above #send_textarea.
-// Pure DOM, no innerHTML for user data, full a11y, mobile-first.
+// Collapsible button panel that mounts inside #send_form, above #nonQRFormItems.
+// All user-supplied strings rendered via textContent only (XSS-safe).
 
 import { t, onLocaleChange } from './i18n.js';
 import { performInsert } from './insert.js';
@@ -48,8 +48,7 @@ function resolveMountSlot(target) {
     if (sheld && sendForm && sendForm.parentElement === sheld) {
         return { container: sheld, anchor: sendForm };
     }
-    // Fallback B (last resort): the textarea's parent, before the textarea itself.
-    // This is the legacy behavior; only used when the canonical structure isn't present.
+    // Fallback B: only used when the canonical structure isn't present.
     return { container: target.parentElement, anchor: target };
 }
 
@@ -60,14 +59,12 @@ function detectConflictAndWarn() {
         if (settings.scopeWarnedAboutInputAssistant) return;
 
         let detected = false;
-        // Method 1: TavernHelper API
         try {
             const scripts = globalThis.TavernHelper?.getScripts?.();
             if (Array.isArray(scripts)) {
                 detected = scripts.some(s => s?.id === REFERENCE_SCRIPT_ID);
             }
         } catch { /* ignore */ }
-        // Method 2: DOM marker
         if (!detected) {
             detected = !!document.querySelector(`[data-script-id="${REFERENCE_SCRIPT_ID}"]`);
         }
@@ -78,14 +75,13 @@ function detectConflictAndWarn() {
     } catch { /* ignore */ }
 }
 
-/** Build a single button DOM node. */
+/** Build a single button DOM node. textContent only — XSS-safe. */
 function buildButtonEl(btn) {
     const el = document.createElement('button');
     el.type = 'button';
     el.className = 'aid--btn';
     el.setAttribute('data-aid-id', btn.id);
     el.setAttribute('formnovalidate', '');
-    // textContent rendering only — XSS-safe.
     const face = document.createElement('span');
     face.className = 'aid--btn-face';
     face.textContent = btn.name;
@@ -128,15 +124,32 @@ function buildGroupChips(groups, recentVisible) {
     return wrap;
 }
 
-/** Render the contents of the panel based on current settings. */
+/** Open the Extensions tab and unfold our settings drawer. Best-effort. */
+function openOurSettings() {
+    try {
+        const extDrawer = document.getElementById('extensions-settings-button');
+        const extPanel = document.getElementById('rm_extensions_block') || document.getElementById('extensions_settings');
+        if (extDrawer && extPanel && !extPanel.offsetParent) {
+            extDrawer.click();
+        }
+        const ourDrawer = document.querySelector('.aid--settings');
+        if (ourDrawer) {
+            ourDrawer.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            const drawerContent = ourDrawer.querySelector('.inline-drawer-content');
+            if (drawerContent && drawerContent.style.display === 'none') {
+                ourDrawer.querySelector('.inline-drawer-toggle')?.click();
+            }
+        }
+    } catch { /* ignore */ }
+}
+
 function render(panelEl) {
     const settings = getSettings();
-    const buttons = (settings.buttons || []).filter(b => b && b.enabled !== false);
+    const allButtons = settings.buttons || [];
+    const buttons = allButtons.filter(b => b && b.enabled !== false);
 
-    // Toggle collapsed class
     panelEl.classList.toggle('aid--collapsed', !!settings.panel?.collapsed);
 
-    // Header text + label refresh
     const expandLabel = settings.panel?.collapsed ? t('aid.panel.expand') : t('aid.panel.collapse');
     const toggleBtn = panelEl.querySelector('[data-aid-toggle]');
     if (toggleBtn) {
@@ -148,34 +161,38 @@ function render(panelEl) {
     const body = panelEl.querySelector('.aid--panel-body');
     if (!body) return;
 
-    // Hide body when collapsed (CSS handles animation).
+    // CSS handles the collapse animation; we skip rebuilding while collapsed.
     if (settings.panel?.collapsed) return;
 
-    // Compute groups present
     const groupsSet = new Set();
     for (const b of buttons) {
         if (b.group) groupsSet.add(String(b.group));
     }
     const groups = [...groupsSet];
 
-    // Recent
     const recentEnabled = settings.panel?.recentEnabled !== false;
     const recentBtns = recentEnabled ? resolveRecent(settings.recentIds || [], buttons) : [];
     const recentVisible = recentEnabled && recentBtns.length > 0;
 
-    // Reset body
     body.replaceChildren();
 
-    // Group chips (only if multiple groups OR recent active)
-    if (groups.length > 1 || recentVisible) {
-        body.appendChild(buildGroupChips(groups, recentVisible));
+    // Chips appear only when filtering offers a real choice (≥2 groups, or
+    // when Recent gives a second tab beyond a single group).
+    const showChips = groups.length >= 2 || (groups.length >= 1 && recentVisible) || recentVisible;
+    if (showChips) {
+        const chipsEl = buildGroupChips(groups, recentVisible);
+        body.appendChild(chipsEl);
+        requestAnimationFrame(() => {
+            const active = chipsEl.querySelector('.aid--chip-active');
+            active?.scrollIntoView({ inline: 'nearest', block: 'nearest', behavior: 'smooth' });
+        });
     }
 
-    // Decide which buttons to show
     let visible;
-    if (STATE.activeGroup === '__all__') visible = buttons;
+    if (!showChips || STATE.activeGroup === '__all__') visible = buttons;
     else if (STATE.activeGroup === '__recent__') visible = recentBtns;
-    else visible = buttons.filter(b => String(b.group || '') === STATE.activeGroup);
+    else if (groups.includes(STATE.activeGroup)) visible = buttons.filter(b => String(b.group || '') === STATE.activeGroup);
+    else visible = buttons; // active group no longer exists; fall back to All
 
     const row = document.createElement('div');
     row.className = 'aid--btn-row';
@@ -185,24 +202,35 @@ function render(panelEl) {
     if (visible.length === 0) {
         const empty = document.createElement('div');
         empty.className = 'aid--empty';
-        empty.textContent = t('aid.panel.no_buttons');
+        // Distinguish "no buttons at all" (show CTA) from "this group is empty" (plain text).
+        if (allButtons.length > 0) {
+            empty.textContent = t('aid.panel.no_buttons');
+        } else {
+            const cta = document.createElement('button');
+            cta.type = 'button';
+            cta.className = 'aid--empty-cta';
+            cta.setAttribute('data-aid-open-settings', '');
+            cta.appendChild(document.createTextNode(t('aid.panel.no_buttons_cta')));
+            const icon = document.createElement('i');
+            icon.className = 'fa-solid fa-arrow-right';
+            icon.setAttribute('aria-hidden', 'true');
+            cta.appendChild(icon);
+            empty.appendChild(cta);
+        }
         row.appendChild(empty);
     } else {
-        // Sort by `order` then declaration order.
         const sorted = visible.slice().sort((a, b) => (a.order ?? 0) - (b.order ?? 0));
         for (const b of sorted) row.appendChild(buildButtonEl(b));
     }
     body.appendChild(row);
 }
 
-/** Build the panel skeleton once. */
 function buildPanelSkeleton() {
     const panel = document.createElement('div');
     panel.className = PANEL_CLASS;
     panel.setAttribute('role', 'region');
     panel.setAttribute('aria-label', t('aid.a11y.panel'));
 
-    // Header bar with collapse toggle
     const head = document.createElement('div');
     head.className = 'aid--panel-head';
 
@@ -225,12 +253,10 @@ function buildPanelSkeleton() {
 
     panel.append(head, body);
 
-    // Click handlers
     panel.addEventListener('click', (ev) => {
         const target = ev.target instanceof Element ? ev.target : null;
         if (!target) return;
 
-        // Toggle collapse
         const t1 = target.closest('[data-aid-toggle]');
         if (t1) {
             ev.preventDefault();
@@ -240,7 +266,13 @@ function buildPanelSkeleton() {
             return;
         }
 
-        // Group chip
+        const ctaEl = target.closest('[data-aid-open-settings]');
+        if (ctaEl) {
+            ev.preventDefault();
+            openOurSettings();
+            return;
+        }
+
         const chip = target.closest('[data-aid-group]');
         if (chip) {
             ev.preventDefault();
@@ -249,7 +281,6 @@ function buildPanelSkeleton() {
             return;
         }
 
-        // Button click
         const btnEl = target.closest('[data-aid-id]');
         if (btnEl) {
             ev.preventDefault();
@@ -280,14 +311,13 @@ function mountIfNeeded() {
     const slot = resolveMountSlot(target);
     if (!slot?.container) return false;
 
-    // Already mounted?
     if (STATE.panelEl?.isConnected) {
         if (!wantShow) {
             STATE.panelEl.remove();
             STATE.panelEl = null;
             return true;
         }
-        // Make sure it's still positioned in the canonical slot.
+        // Reposition if the canonical slot has shifted (DOM mutation by ST).
         const expectedNext = slot.anchor;
         const expectedParent = slot.container;
         if (
@@ -311,11 +341,10 @@ function mountIfNeeded() {
     return true;
 }
 
-/** Watch for #send_textarea appearing/disappearing. */
+/** Watches for ST DOM mutations and remounts if our panel was removed. */
 function startObserver() {
     if (STATE.mountObserver) return;
     STATE.mountObserver = new MutationObserver(() => {
-        // If our panel got removed but should exist, remount.
         if (!STATE.panelEl?.isConnected) {
             mountIfNeeded();
         }
@@ -331,7 +360,7 @@ function stopObserver() {
 export function initPanel() {
     if (mountIfNeeded()) startObserver();
     else {
-        // Retry until #send_textarea appears.
+        // Retry until #send_textarea appears (ST mounts the chat UI lazily).
         let tries = 0;
         const timer = setInterval(() => {
             if (mountIfNeeded() || ++tries > 60) {
@@ -341,16 +370,13 @@ export function initPanel() {
         }, 500);
     }
 
-    // React to settings changes (panel toggle, button list, recents).
     onSettingsChange(() => {
         if (STATE.panelEl?.isConnected) render(STATE.panelEl);
         else mountIfNeeded();
     });
 
-    // Re-render labels on locale change.
     onLocaleChange(() => {
         if (STATE.panelEl) {
-            // Rebuild labels by re-rendering.
             STATE.panelEl.setAttribute('aria-label', t('aid.a11y.panel'));
             render(STATE.panelEl);
         }

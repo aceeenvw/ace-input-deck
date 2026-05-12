@@ -1,4 +1,5 @@
-// ⊹ ACE INPUT DECK ⊹ — entry point. Author: aceenvw.
+// ⊹ ACE INPUT DECK ⊹ — entry point.
+// Author: aceenvw — https://github.com/aceeenvw/ace-input-deck
 import './style.css';
 
 import { loadSettings, mountSettingsPanel, onSettingsChange } from './settings.js';
@@ -63,7 +64,7 @@ try {
     if (ev && types?.APP_READY) ev.on(types.APP_READY, init);
 } catch { /* ignore */ }
 
-// Frozen debug handle — read-only, no mutable surface.
+// Read-only debug handle. Frozen so no caller can mutate or extend it.
 try {
     globalThis.AceInputDeck = Object.freeze({
         version: META.version,

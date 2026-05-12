@@ -1,5 +1,7 @@
-// Import / Export of the button set. Strict validation, prototype-pollution-safe.
-// Accepts native v1 shape AND the 输入助手 reference-script JSON shape.
+// Import / Export of the button set.
+// - Strict validation with length caps and enum allowlists.
+// - JSON sanitizer strips __proto__ / prototype / constructor recursively.
+// - Adapter accepts the 输入助手 reference-script JSON shape for one-click migration.
 
 import { stableId, META } from './build-info.js';
 import { t } from './i18n.js';
@@ -60,7 +62,7 @@ export function validateButton(row, idx) {
     const insert_position = String(row.insert_position ?? 'as_is');
     const cursor_position = Number.isFinite(row.cursor_position) ? Number(row.cursor_position) : 0;
     const group = String(row.group ?? '');
-    // Reference script uses `enable`; native uses `enabled`.
+    // Reference script JSON uses `enable`; native uses `enabled`. Accept both.
     const enabled = (row.enabled !== false) && (row.enable !== false);
 
     if (!name) errors.push(t('aid.editor.validation_name_required'));

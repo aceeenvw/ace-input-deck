@@ -122,6 +122,8 @@
     scrollbar-width: none;
     -webkit-overflow-scrolling: touch;
     scroll-snap-type: x proximity;
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
 }
 .aid--group-chips::-webkit-scrollbar { display: none; }
 .aid--chip {
@@ -160,6 +162,8 @@
     scroll-snap-type: x proximity;
     -webkit-overflow-scrolling: touch;
     scrollbar-width: none;
+    touch-action: pan-x;
+    overscroll-behavior-x: contain;
 }
 .aid--btn-row::-webkit-scrollbar { display: none; }
 
@@ -193,7 +197,32 @@
 .aid--empty {
     color: var(--aid-fg-muted);
     font-size: 12px;
-    padding: 8px;
+    padding: 4px 8px;
+    display: inline-flex;
+    align-items: center;
+}
+.aid--empty-cta {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px dashed var(--aid-border);
+    border-radius: var(--aid-radius-pill);
+    color: var(--aid-fg-muted);
+    cursor: pointer;
+    font: inherit;
+    font-size: 12px;
+    padding: 4px 12px;
+    min-height: 26px;
+    transition: color var(--aid-anim), border-color var(--aid-anim);
+}
+.aid--empty-cta:hover {
+    color: var(--aid-fg);
+    border-color: var(--aid-accent);
+}
+.aid--empty-cta:focus-visible {
+    outline: 2px solid var(--aid-accent);
+    outline-offset: 2px;
 }
 
 /* Undo pill — anchors to the panel head's right edge, doesn't expand panel height. */
@@ -502,6 +531,11 @@
     border-radius: var(--aid-radius-sm);
     background: var(--aid-bg-elev);
     transition: border-color var(--aid-anim), background var(--aid-anim);
+    outline: none;
+}
+.aid--erow:focus-visible {
+    border-color: var(--aid-accent);
+    box-shadow: 0 0 0 2px color-mix(in oklab, var(--aid-accent) 35%, transparent);
 }
 .aid--erow-dragging { opacity: 0.5; }
 .aid--erow-over { border-color: var(--aid-accent); background: color-mix(in oklab, var(--aid-bg-elev) 80%, var(--aid-accent) 12%); }
@@ -661,26 +695,56 @@
 /* ════════════════════════════════════════════════════════════════
    Mobile + a11y
    ════════════════════════════════════════════════════════════════ */
+
+/* Tablet / small laptop */
 @media (max-width: 640px) {
     .aid--field-row { grid-template-columns: 1fr; }
     .aid--erow {
         grid-template-columns: auto auto 1fr;
         grid-template-rows: auto auto;
+        gap: 8px;
+        padding: 6px 8px;
     }
     .aid--erow-actions {
         grid-column: 1 / -1;
         justify-content: flex-end;
+        flex-wrap: wrap;
     }
-    .aid--btn { padding: 6px 12px; font-size: 13px; }
-    .aid--edit-form { margin-left: 0; }
+    .aid--erow-meta { flex-wrap: wrap; }
+    .aid--btn { padding: 4px 10px; font-size: 13px; }
+    .aid--edit-form { margin-left: 0; padding: 10px; }
+    .aid--io-row .aid--ghost-btn { flex: 1 1 calc(50% - 4px); justify-content: center; }
+    .aid--preset-chips { gap: 4px; }
 }
 
-@media (pointer: coarse) {
-    /* Panel buttons stay tap-friendly without inflating the form footprint. */
-    .aid--panel .aid--btn { min-height: 36px; padding: 4px 12px; }
-    .aid--panel .aid--chip { height: 26px; padding: 0 10px; }
+/* Phone */
+@media (max-width: 480px) {
+    .aid--card-body { padding: 10px; gap: 8px; }
+    .aid--card-head { padding: 8px 12px; }
+    .aid--erow {
+        grid-template-columns: auto auto 1fr;
+        gap: 6px;
+        padding: 6px;
+    }
+    .aid--erow-face { max-width: 120px; font-size: 12px; }
+    .aid--erow-desc { font-size: 12px; }
+    .aid--erow-group { display: none; }
+    .aid--field-row { gap: 8px; }
+    .aid--input, .aid--select, .aid--textarea {
+        font-size: 16px;
+    }
+    .aid--io-row .aid--ghost-btn { flex: 1 1 100%; }
+    .aid--editor-toolbar { gap: 8px; }
+    .aid--hint { display: none; }
+}
 
-    /* Settings drawer controls: full 44pt for comfortable editing on touch. */
+/* Touch devices: comfortable taps without bloating panel footprint */
+@media (pointer: coarse) {
+    .aid--panel .aid--btn { min-height: 40px; padding: 6px 14px; font-size: 14px; }
+    .aid--panel .aid--chip { height: 30px; padding: 0 12px; font-size: 12px; }
+    .aid--panel-toggle { min-height: 28px; padding: 4px 8px; }
+    .aid--undo-pill { min-height: 28px; padding: 4px 12px; font-size: 12px; }
+
     .aid--settings .aid--ghost-btn,
     .aid--settings .aid--primary-btn,
     .aid--settings .aid--seg-btn,
@@ -691,6 +755,10 @@
     .aid--settings .aid--switch input:checked + .aid--switch-track .aid--switch-thumb {
         transform: translateX(22px);
     }
+    /* Wider drag handle so it can actually be grabbed with a thumb */
+    .aid--drag-handle { width: 32px; height: 44px; touch-action: none; }
+    /* Bigger row action buttons */
+    .aid--erow-actions .aid--icon-btn { width: 40px; height: 40px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
