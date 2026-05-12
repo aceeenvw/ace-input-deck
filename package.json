@@ -1,0 +1,30 @@
+{
+  "name": "aceinputdeck",
+  "version": "1.0.0",
+  "description": "A collapsible quick-insert button deck for the SillyTavern input. Author: aceenvw.",
+  "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/aceeenvw/ace-input-deck.git"
+  },
+  "homepage": "https://github.com/aceeenvw/ace-input-deck#readme",
+  "bugs": {
+    "url": "https://github.com/aceeenvw/ace-input-deck/issues"
+  },
+  "license": "AGPL-3.0-or-later",
+  "author": "aceenvw",
+  "scripts": {
+    "build": "webpack --mode production",
+    "build:dev": "webpack --mode development",
+    "watch": "webpack --mode development --watch"
+  },
+  "dependencies": {
+    "css-loader": "^7.1.2",
+    "style-loader": "^4.0.0"
+  },
+  "devDependencies": {
+    "terser-webpack-plugin": "^5.3.10",
+    "webpack": "^5.97.1",
+    "webpack-cli": "^5.1.4"
+  }
+}

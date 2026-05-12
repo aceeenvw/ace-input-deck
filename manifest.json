@@ -1,0 +1,16 @@
+{
+    "display_name": "\u22B9 ACE INPUT DECK \u22B9",
+    "loading_order": 999,
+    "requires": [],
+    "optional": [],
+    "js": "dist/index.js",
+    "css": "",
+    "author": "aceenvw",
+    "version": "1.0.0",
+    "homePage": "https://github.com/aceeenvw/ace-input-deck",
+    "auto_update": true,
+    "i18n": {
+        "en-us": "i18n/en-us.json",
+        "ru-ru": "i18n/ru-ru.json"
+    }
+}
