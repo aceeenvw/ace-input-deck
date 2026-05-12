@@ -466,21 +466,28 @@
 .aid--icon-btn:hover { background: var(--aid-bg-elev); }
 .aid--icon-btn-danger:hover { color: var(--aid-danger); border-color: var(--aid-danger); }
 
-/* Segmented controls */
+/* Segmented controls
+   `display: flex` (not inline-flex) so the segment fills its parent column
+   and never overflows. min-width:0 on children lets labels shrink/ellipsize
+   instead of pushing past the border. */
 .aid--seg {
-    display: inline-flex;
+    display: flex;
+    width: 100%;
+    max-width: 100%;
     border: 1px solid var(--aid-border);
     border-radius: var(--aid-radius-sm);
     overflow: hidden;
     background: var(--aid-bg-elev);
+    box-sizing: border-box;
 }
 .aid--seg-btn {
-    flex: 1 1 auto;
+    flex: 1 1 0;
+    min-width: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     gap: 6px;
-    padding: 8px 12px;
+    padding: 8px 10px;
     background: transparent;
     color: var(--aid-fg-muted);
     border: none;
@@ -488,7 +495,14 @@
     font-size: 13px;
     cursor: pointer;
     min-height: 36px;
+    line-height: 1.2;
     transition: background var(--aid-anim), color var(--aid-anim);
+}
+.aid--seg-btn > span {
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    min-width: 0;
 }
 .aid--seg-btn + .aid--seg-btn { border-left: 1px solid var(--aid-border); }
 .aid--seg-btn:hover { color: var(--aid-fg); }
@@ -625,9 +639,11 @@
 }
 .aid--field-row {
     display: grid;
-    grid-template-columns: minmax(180px, 1fr) minmax(220px, 2fr);
+    grid-template-columns: minmax(0, 1fr) minmax(0, 2fr);
     gap: 12px;
+    align-items: start;
 }
+.aid--field-row > .aid--field { min-width: 0; }
 .aid--preview {
     font-size: 12px;
     color: var(--aid-fg-muted);
@@ -736,6 +752,16 @@
     .aid--io-row .aid--ghost-btn { flex: 1 1 100%; }
     .aid--editor-toolbar { gap: 8px; }
     .aid--hint { display: none; }
+
+    /* Stack icon over label on the segmented control so all three options
+       stay readable at narrow widths instead of ellipsizing into "B…" */
+    .aid--seg-btn {
+        flex-direction: column;
+        gap: 2px;
+        padding: 6px 4px;
+        font-size: 11px;
+    }
+    .aid--seg-btn > span { white-space: normal; }
 }
 
 /* Touch devices: comfortable taps without bloating panel footprint */

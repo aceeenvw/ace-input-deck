@@ -6,7 +6,7 @@
     "js": "dist/index.js",
     "css": "",
     "author": "aceenvw",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "homePage": "https://github.com/aceeenvw/ace-input-deck",
     "auto_update": true,
     "i18n": {

@@ -2,6 +2,27 @@
 
 All notable changes to ⊹ ACE INPUT DECK ⊹ are documented here.
 
+## 1.0.3 — Segmented control overflow fix
+
+### Fixed
+- The "Insert position" segmented control (At cursor / Beginning / End) and
+  the preset Append/Replace control were overflowing their parent column,
+  visually crossing the card's inner border on narrow widths. Root cause:
+  `.aid--seg` used `display: inline-flex` and sized to natural content
+  (~330 px for three buttons) while the grid column only allocated `minmax`
+  bounds that the seg ignored.
+- `.aid--seg` now uses `display: flex; width: 100%; max-width: 100%`.
+- `.aid--seg-btn` gets `flex: 1 1 0` + `min-width: 0` so labels can shrink
+  with `text-overflow: ellipsis` instead of pushing past the border.
+- `.aid--field-row` switched from `minmax(180px, 1fr) minmax(220px, 2fr)`
+  (which demanded ≥412 px minimum width) to `minmax(0, 1fr) minmax(0, 2fr)`
+  so the row can never demand more space than its parent provides.
+- `align-items: start` on `.aid--field-row` so labels line up at the top
+  even when the right column is taller than the left.
+- At ≤480 px, segmented buttons now stack icon-over-label (column flow,
+  smaller font) so all three options stay readable on narrow phones
+  instead of ellipsizing into "B…".
+
 ## 1.0.2 — Mobile + UX polish
 
 ### Settings cleanup
