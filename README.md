@@ -3,8 +3,14 @@
 A collapsible quick-insert button deck for the SillyTavern input — designed for roleplay flow.
 
 **Author:** aceenvw
-**Version:** 1.0.0
+**Version:** 1.0.4
 **License:** AGPL-3.0-or-later
+
+---
+
+## About
+
+⊹ ACE INPUT DECK ⊹ adds a tap-to-insert button strip directly above your SillyTavern input. Build custom snippets, wrap selected text in symmetric pairs, drop long templates, or sort buttons into icon-tagged groups — all from one collapsible bar. Ships with a Roleplay-basics preset and two more bundled packs (Russian punctuation, Markdown power), and imports button sets from the `输入助手` Tavern Helper script if you're migrating. Built mobile-first, fully bilingual (EN / RU), with an iOS-style settings drawer matching ⊹ CODE MIRROR PRO ⊹.
 
 ---
 
@@ -15,14 +21,17 @@ Adds a customizable, collapsible panel of quick-insert buttons directly above th
 - **iOS-style settings panel** in the Extensions tab — same visual language as ⊹ CODE MIRROR PRO ⊹.
 - **Smart wrap-on-selection.** Highlight a word, click `**`, and it becomes `**word**`. Works for `""`, `«»`, `[]`, `()`, `***`, `~~`, and any symmetric pair.
 - **Cursor placement control** — full `cursor_position` + `insert_position` model (`as_is` / `prepend` / `append`).
-- **Drag-reorderable** button list with inline edit form, live preview of cursor placement, and group autocomplete.
+- **Drag-reorderable** button list with inline edit form, live preview of cursor placement, and group autocomplete. Touch reorder via long-press; keyboard reorder via Alt+↑/↓ on a focused row.
 - **Group filter chips** + a "Recent" virtual group that auto-tracks your last 8 clicks.
+- **Group icons.** Each group can carry an optional FontAwesome icon, picked from a curated 30-icon modal grid. Icons render on the panel chips and the editor row chips.
+- **Bulk operations.** Multi-select rows in the editor → enable/disable/delete/export only the selection.
 - **Undo guard:** every insert shows a 3-second ghost-undo pill — no accidental damage.
 - **Import / Export** as JSON. Includes an interop adapter for the `输入助手` Tavern Helper script JSON shape.
 - **Conflict detection:** if `输入助手` is also active, you get one warning toast — no hostile takeover.
 - **i18n:** English (primary) + Русский, fallback chain with strict placeholder interpolation.
-- **Mobile-first:** 44 pt tap targets, swipeable horizontal row, safe-area insets, `dvh` units.
+- **Mobile-first:** 44 pt tap targets, swipeable horizontal row, safe-area insets, `dvh` units, touch-friendly drag-and-drop.
 - **Accessibility:** `aria-toolbar`, `aria-expanded`, `aria-live` insert announcements, full keyboard nav, `prefers-reduced-motion` and `forced-colors` respected.
+- **Migrations registry.** Schema upgrades are versioned and traceable; old configs upgrade cleanly.
 - **Security baseline:** see [Security](#security) below.
 
 ## Install
@@ -100,6 +109,9 @@ Always-on, not optional:
 | 9 | i18n key escapes | Strict `/\{(\w+)\}/g` placeholder regex; no arbitrary key resolution. |
 | 10 | File picker abuse | Imports require accept=`.json,application/json`; size capped before parse. |
 | 11 | Symmetric-wrap fooling | `isSymmetric` only triggers on even-length exact mirrors; falls back to plain insert otherwise. |
+| 12 | FontAwesome class injection | Strict allowlist regex `^fa-(?:solid\|regular\|brands) fa-[a-z0-9-]+$` with 64-char cap. Single literal space (no `\s+` runs). 16/16 attack payloads rejected. |
+| 13 | Group metadata leakage | `groups` map never crosses the import/export boundary. Read-time re-sanitization of icon classes (defense-in-depth). |
+| 14 | Migration brick risk | Each migration step wrapped in `try/catch`; failures break the chain instead of corrupting settings. Loop bounded by registry length. |
 
 ## FAQ
 
