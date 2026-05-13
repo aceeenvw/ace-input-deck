@@ -2,6 +2,28 @@
 
 All notable changes to ⊹ ACE INPUT DECK ⊹ are documented here.
 
+## 1.0.5 — Group-icon picker reachable
+
+### Fixed
+- The group-icon picker button (the `+` next to the group input in the
+  edit form) was a native `<button disabled>` whenever the group field
+  was empty. A disabled button swallows clicks entirely, so the picker
+  silently did nothing on first interaction — exactly when users would
+  most expect it to work (right after opening the editor for a fresh
+  button).
+- The button is no longer set to `disabled`. Clicking it without a
+  group name now shows a toast hint *"Type a group name first to pick
+  its icon"* and auto-focuses the group field, so the next keystroke
+  goes where it should.
+- Visual hint when the picker is unavailable kept (dashed border, lower
+  opacity) so the state is still discoverable, but the button is
+  reachable.
+- Picker modal `z-index` raised from 10000 to 100000 to stay above any
+  ST popup layer that might sit at 10000.
+
+### Added
+- New i18n key `aid.editor.group_icon_needs_name` (en + ru).
+
 ## 1.0.4 — Bulk operations, group icons, migrations registry
 
 ### New

@@ -38,6 +38,7 @@
     "aid.editor.action_edit": "Изменить",
     "aid.editor.delete_confirm": "Удалить кнопку «{name}»?",
     "aid.editor.group_icon": "Иконка группы",
+    "aid.editor.group_icon_needs_name": "Сначала введите название группы, потом выбирайте иконку.",
     "aid.editor.group_icon_none": "Без иконки",
     "aid.editor.group_icon_picker_title": "Выберите иконку для «{group}»",
     "aid.editor.bulk_bar_label": "Массовые действия",

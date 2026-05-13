@@ -352,8 +352,13 @@ function buildEditForm(btn) {
     refreshGroupIconPreview();
     const syncIconBtnState = () => {
         const hasGroup = String(group.value || '').trim().length > 0;
-        groupIconBtn.disabled = !hasGroup;
+        // Visual hint only — never `disabled`. A native `disabled` button
+        // swallows clicks entirely, which made the picker feel broken when
+        // the group field was empty. Clicking without a name now focuses
+        // the group input + shows a toast (handled in the click handler).
         groupIconBtn.classList.toggle('aid--group-icon-btn-disabled', !hasGroup);
+        groupIconBtn.title = hasGroup ? t('aid.editor.group_icon') : t('aid.editor.group_icon_needs_name');
+        groupIconBtn.setAttribute('aria-label', groupIconBtn.title);
     };
     syncIconBtnState();
     // Mirror typed group name back onto the local proxy so the icon preview
@@ -599,7 +604,15 @@ function attachHandlers() {
             if (action === 'pick-group-icon') {
                 const form = editAct.closest('[data-aid-edit-form-id]');
                 const groupInput = form?.querySelector('[data-aid-edit-field="group"]');
-                openIconPicker(groupInput?.value);
+                const groupName = String(groupInput?.value || '').trim();
+                if (!groupName) {
+                    // No group set — guide the user to the field instead of
+                    // silently doing nothing.
+                    try { globalThis.toastr?.info?.(t('aid.editor.group_icon_needs_name')); } catch { /* ignore */ }
+                    groupInput?.focus?.();
+                    return;
+                }
+                openIconPicker(groupName);
                 return;
             }
             const form = editAct.closest('[data-aid-edit-form-id]');

@@ -38,6 +38,7 @@
     "aid.editor.action_edit": "Edit",
     "aid.editor.delete_confirm": "Delete button \u201C{name}\u201D?",
     "aid.editor.group_icon": "Group icon",
+    "aid.editor.group_icon_needs_name": "Type a group name first to pick its icon.",
     "aid.editor.group_icon_none": "No icon",
     "aid.editor.group_icon_picker_title": "Pick an icon for \u201C{group}\u201D",
     "aid.editor.bulk_bar_label": "Bulk actions",

@@ -580,22 +580,26 @@
     justify-content: center;
     transition: background var(--aid-anim), border-color var(--aid-anim), color var(--aid-anim);
 }
-.aid--group-icon-btn:hover:not(:disabled) {
+.aid--group-icon-btn:hover {
     border-color: var(--aid-accent);
     color: var(--aid-accent);
 }
-.aid--group-icon-btn-disabled,
-.aid--group-icon-btn:disabled {
-    opacity: 0.45;
-    cursor: not-allowed;
+.aid--group-icon-btn-disabled {
+    opacity: 0.55;
+    border-style: dashed;
+}
+.aid--group-icon-btn-disabled:hover {
+    /* Subtle hover keeps the button feeling clickable (which it now is). */
+    opacity: 0.85;
 }
 .aid--group-icon-empty { opacity: 0.55; }
 
-/* Icon picker modal. */
+/* Icon picker modal. Mounts on document.body to escape ST's stacking
+   contexts. z-index is intentionally above ST's popup layer. */
 .aid--modal-overlay {
     position: fixed;
     inset: 0;
-    z-index: 10000;
+    z-index: 100000;
     background: rgba(0, 0, 0, 0.55);
     display: flex;
     align-items: center;
