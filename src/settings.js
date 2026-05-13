@@ -5,6 +5,7 @@ import { t, setLocale, detectLocale, getAvailableLocales, onLocaleChange } from 
 import { getDefaultButtons, PRESETS, instantiatePreset } from './presets.js';
 import { mountButtonsEditor } from './buttons-editor.js';
 import { downloadJson, readJsonFile, validateImport } from './importexport.js';
+import { runMigrations, LATEST_SCHEMA } from './migrations.js';
 import { META } from './build-info.js';
 
 const KEY = 'aceInputDeck';
@@ -18,10 +19,11 @@ export const DEFAULTS = Object.freeze({
         collapsed: false,           // current collapsed state, always persisted
         recentEnabled: true,
     },
-    buttons: [],                    // populated on first install via initBootstrap()
+    buttons: [],                    // populated on first install via getDefaultButtons()
+    groups: {},                     // groupName -> { icon: 'fa-solid fa-comment' }
     recentIds: [],
     scopeWarnedAboutInputAssistant: false,
-    _migrated: 2,                   // bumped in 1.0.2: dropped panel.rememberCollapsed
+    _migrated: 0,                   // raised by runMigrations() to LATEST_SCHEMA
 });
 
 const LISTENERS = new Set();
@@ -59,6 +61,9 @@ function notify(settings) {
 export function loadSettings() {
     const store = getStore();
     let merged = deepMerge(DEFAULTS, store[KEY] || {});
+
+    // Run schema migrations before any consumer touches the object.
+    merged = runMigrations(merged);
 
     // First-install bootstrap: empty buttons → load default preset.
     if (!Array.isArray(merged.buttons) || merged.buttons.length === 0) {
@@ -103,7 +108,11 @@ export function saveSettings(patch) {
 
 export function resetSettings() {
     const store = getStore();
-    const reset = deepMerge(DEFAULTS, { _migrated: 1, buttons: getDefaultButtons() });
+    const reset = deepMerge(DEFAULTS, {
+        _migrated: LATEST_SCHEMA,
+        buttons: getDefaultButtons(),
+        groups: {},
+    });
     store[KEY] = reset;
     try {
         const ctx = globalThis.SillyTavern?.getContext?.();
@@ -116,6 +125,64 @@ export function resetSettings() {
 export function onSettingsChange(fn) {
     LISTENERS.add(fn);
     return () => LISTENERS.delete(fn);
+}
+
+/* Group metadata helpers ───────────────────────────────────────── */
+
+export function getGroupIcon(name) {
+    if (!name) return '';
+    const g = getSettings().groups || {};
+    const entry = g[String(name)];
+    if (!entry || typeof entry.icon !== 'string') return '';
+    // Defense in depth: re-sanitize on read so a hand-edited extension_settings
+    // file can't smuggle a malicious class string into rendered DOM.
+    return sanitizeIconClass(entry.icon);
+}
+
+/**
+ * Set or clear a group's icon. Pass an empty string to clear. Strict
+ * sanitization: only fa-solid/fa-regular/fa-brands prefixed classes are
+ * accepted to prevent arbitrary class injection.
+ */
+export function setGroupIcon(name, icon) {
+    const groupName = String(name || '').trim();
+    if (!groupName) return;
+    const safe = sanitizeIconClass(icon);
+    const cur = getSettings().groups || {};
+    const next = { ...cur };
+    if (!safe) {
+        delete next[groupName];
+    } else {
+        next[groupName] = { ...(cur[groupName] || {}), icon: safe };
+    }
+    saveSettings({ groups: next });
+}
+
+/** Drop entries for groups no longer referenced by any button. Idempotent. */
+export function pruneOrphanGroups() {
+    const s = getSettings();
+    const used = new Set();
+    for (const b of s.buttons || []) if (b.group) used.add(String(b.group));
+    const groups = s.groups || {};
+    const next = {};
+    let changed = false;
+    for (const name of Object.keys(groups)) {
+        if (used.has(name)) next[name] = groups[name];
+        else changed = true;
+    }
+    if (changed) saveSettings({ groups: next });
+}
+
+// Strict allowlist for FontAwesome class strings to prevent class-name
+// injection. Single literal space separator; no whitespace runs, no
+// newlines, no extra classes appended.
+function sanitizeIconClass(raw) {
+    if (typeof raw !== 'string') return '';
+    const trimmed = raw.trim();
+    if (!trimmed) return '';
+    if (trimmed.length > 64) return '';
+    if (!/^fa-(?:solid|regular|brands) fa-[a-z0-9-]+$/.test(trimmed)) return '';
+    return trimmed;
 }
 
 /* ════════════════════════════════════════════════════════════════

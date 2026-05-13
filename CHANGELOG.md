@@ -2,6 +2,60 @@
 
 All notable changes to ⊹ ACE INPUT DECK ⊹ are documented here.
 
+## 1.0.4 — Bulk operations, group icons, migrations registry
+
+### New
+- **Bulk operations in the buttons editor.** Each row gains a small selection
+  checkbox in the leftmost column. Selecting one or more rows reveals a bulk
+  action bar above the list:
+  - **Selected: N** counter with an active-state border.
+  - **Select all** / **Clear selection** (toggles based on current state).
+  - **Enable** / **Disable** (sets the `enabled` flag on all selected rows).
+  - **Export** (downloads only the selected rows as JSON, native v1 schema).
+  - **Delete** (single confirm with count, drops orphan group-icon entries).
+- **Group icons.** Each group can carry an optional FontAwesome icon, rendered:
+  - Left of the group name on the panel's group-filter chips.
+  - Left of the group label chip in editor rows.
+  - As a 36 px button next to the group input in the edit form (44 px on touch).
+  - Picked from a **modal with a curated 30-icon grid** (comment, quote-left,
+    quote-right, asterisk, italic, bold, hashtag, at, tag, tags, bookmark,
+    message, envelope, paper-plane, user, user-secret, users, mask,
+    theater-masks, image, camera, film, music, code, terminal,
+    wand-magic-sparkles, bolt, fire, heart, star) plus a "No icon" option.
+  - Picker is keyboard-friendly (Escape closes, click-outside closes, focus
+    lands on the active or first cell on open). Touch-friendly cell sizing
+    on coarse pointers; 3-column grid on phones.
+- **The "All" group chip now shows a layer-group icon, "Recent" shows a
+  clock-rotate-left icon** for visual consistency.
+
+### Changed
+- Migration framework: added `src/migrations.js` with a proper registry
+  (`from`, `to`, `fn` triplets). `loadSettings()` runs the chain on every
+  load, so future schema changes are clean and traceable.
+  - 0 → 1: initial schema (reserved entry).
+  - 1 → 2: drops legacy `panel.rememberCollapsed` (was already informally
+    handled in v1.0.2).
+  - 2 → 3: introduces `settings.groups` map.
+- Editor row grid is now 5 columns (select / drag / toggle / meta / actions);
+  responsive breakpoints adjusted accordingly.
+- The "All" and "Recent" panel chips render with leading icons.
+
+### Security
+- New strict allowlist regex for FontAwesome class strings:
+  `^fa-(solid|regular|brands)\s+fa-[a-z0-9-]+$` with a 64-char max length,
+  guarding against class-name injection through the icon picker or any
+  future code path that hands a class string to `el.className`.
+- The export payload still only emits `buttons[]`; `groups` metadata is
+  not exported, and the importer does not read it. Imported JSON cannot
+  inject group metadata or icon classes.
+- Bulk export filename is fixed (`ace-input-deck-selection-YYYYMMDD.json`)
+  with no user input reaching it.
+- Migration loop is bounded by the registry length, short-circuits when
+  `_migrated` is already at or past a step, and wraps each step in
+  try/catch so a bad migration cannot brick settings.
+- Picker modal listeners on `document` are removed on `pagehide` for
+  hygiene (no functional leak in single-instance practice, but tidy).
+
 ## 1.0.3 — Segmented control overflow fix
 
 ### Fixed

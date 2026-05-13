@@ -1,14 +1,51 @@
-// Buttons editor: drag-reorderable list, inline edit form, add/duplicate/delete.
-// Mounts inside the settings drawer's "Buttons" card body.
+// Buttons editor: row list with drag/keyboard reorder, inline edit form,
+// bulk operations, and a group-icon picker. Mounts inside the settings
+// drawer's "Buttons" card body.
 
 import { t, onLocaleChange } from './i18n.js';
 import { stableId } from './build-info.js';
-import { getSettings, saveSettings, onSettingsChange } from './settings.js';
-import { validateButton } from './importexport.js';
+import { getSettings, saveSettings, onSettingsChange, getGroupIcon, setGroupIcon, pruneOrphanGroups } from './settings.js';
+import { validateButton, buildExportPayload } from './importexport.js';
 
 let _editorRoot = null;
 let _editingId = null;
 const _dragState = { id: null, overId: null };
+const _selected = new Set();
+let _iconPickerCtx = null;  // { groupName, anchorEl } when picker is open
+
+// Curated FA solid set for the picker. Plus an implicit "None" option.
+const ICON_CATALOG = [
+    'fa-solid fa-comment',
+    'fa-solid fa-quote-left',
+    'fa-solid fa-quote-right',
+    'fa-solid fa-asterisk',
+    'fa-solid fa-italic',
+    'fa-solid fa-bold',
+    'fa-solid fa-hashtag',
+    'fa-solid fa-at',
+    'fa-solid fa-tag',
+    'fa-solid fa-tags',
+    'fa-solid fa-bookmark',
+    'fa-solid fa-message',
+    'fa-solid fa-envelope',
+    'fa-solid fa-paper-plane',
+    'fa-solid fa-user',
+    'fa-solid fa-user-secret',
+    'fa-solid fa-users',
+    'fa-solid fa-mask',
+    'fa-solid fa-theater-masks',
+    'fa-solid fa-image',
+    'fa-solid fa-camera',
+    'fa-solid fa-film',
+    'fa-solid fa-music',
+    'fa-solid fa-code',
+    'fa-solid fa-terminal',
+    'fa-solid fa-wand-magic-sparkles',
+    'fa-solid fa-bolt',
+    'fa-solid fa-fire',
+    'fa-solid fa-heart',
+    'fa-solid fa-star',
+];
 
 function el(tag, props = {}, children = []) {
     const e = document.createElement(tag);
@@ -26,6 +63,135 @@ function el(tag, props = {}, children = []) {
         else e.appendChild(c);
     }
     return e;
+}
+
+/* Icon picker modal ──────────────────────────────────────────── */
+
+function buildIconPickerModal(groupName) {
+    const overlay = el('div', { class: 'aid--modal-overlay', dataset: { aidIconPicker: '' } });
+    const modal = el('div', { class: 'aid--modal' });
+    const head = el('div', { class: 'aid--modal-head' });
+    head.appendChild(el('h3', null, t('aid.editor.group_icon_picker_title', { group: groupName })));
+    const closeBtn = el('button', {
+        type: 'button',
+        class: 'aid--icon-btn',
+        dataset: { aidIconPickerAction: 'close' },
+        attrs: { 'aria-label': t('aid.editor.action_cancel'), title: t('aid.editor.action_cancel') },
+    });
+    closeBtn.appendChild(el('i', { class: 'fa-solid fa-xmark' }));
+    head.appendChild(closeBtn);
+
+    const body = el('div', { class: 'aid--modal-body' });
+
+    // None option always first.
+    const grid = el('div', { class: 'aid--icon-grid' });
+    const noneCell = el('button', {
+        type: 'button',
+        class: 'aid--icon-cell aid--icon-cell-none',
+        dataset: { aidIconPick: '__none__' },
+        attrs: { title: t('aid.editor.group_icon_none'), 'aria-label': t('aid.editor.group_icon_none') },
+    });
+    noneCell.appendChild(el('i', { class: 'fa-solid fa-ban' }));
+    noneCell.appendChild(el('span', { class: 'aid--icon-cell-label' }, t('aid.editor.group_icon_none')));
+    if (!getGroupIcon(groupName)) noneCell.classList.add('aid--icon-cell-active');
+    grid.appendChild(noneCell);
+
+    const cur = getGroupIcon(groupName);
+    for (const cls of ICON_CATALOG) {
+        const cell = el('button', {
+            type: 'button',
+            class: 'aid--icon-cell',
+            dataset: { aidIconPick: cls },
+            attrs: { title: cls.replace('fa-solid fa-', ''), 'aria-label': cls.replace('fa-solid fa-', '') },
+        });
+        cell.appendChild(el('i', { class: cls }));
+        if (cls === cur) cell.classList.add('aid--icon-cell-active');
+        grid.appendChild(cell);
+    }
+    body.appendChild(grid);
+
+    modal.append(head, body);
+    overlay.appendChild(modal);
+    return overlay;
+}
+
+function openIconPicker(groupName) {
+    const name = String(groupName || '').trim();
+    if (!name) return;
+    closeIconPicker();
+    const modal = buildIconPickerModal(name);
+    document.body.appendChild(modal);
+    _iconPickerCtx = { groupName: name, modalEl: modal };
+    requestAnimationFrame(() => {
+        const first = modal.querySelector('.aid--icon-cell-active') || modal.querySelector('.aid--icon-cell');
+        first?.focus?.();
+    });
+}
+
+function closeIconPicker() {
+    if (_iconPickerCtx?.modalEl?.isConnected) _iconPickerCtx.modalEl.remove();
+    _iconPickerCtx = null;
+}
+
+/* Bulk operations ─────────────────────────────────────────────── */
+
+function refreshBulkBar() {
+    if (!_editorRoot) return;
+    const settings = getSettings();
+    const total = (settings.buttons || []).length;
+    const old = _editorRoot.querySelector('.aid--bulk-bar');
+    if (!old || total === 0) return;
+    const fresh = buildBulkBar(total);
+    old.replaceWith(fresh);
+}
+
+async function doBulk(action) {
+    const settings = getSettings();
+    const ids = new Set([..._selected]);
+    if (ids.size === 0 && action !== 'select-all' && action !== 'clear') return;
+
+    if (action === 'select-all') {
+        for (const b of settings.buttons || []) _selected.add(b.id);
+        render();
+        return;
+    }
+    if (action === 'clear') {
+        _selected.clear();
+        render();
+        return;
+    }
+    if (action === 'enable' || action === 'disable') {
+        const enabled = action === 'enable';
+        const next = (settings.buttons || []).map(b => ids.has(b.id) ? { ...b, enabled } : b);
+        saveSettings({ buttons: next });
+        return;
+    }
+    if (action === 'export') {
+        const subset = (settings.buttons || []).filter(b => ids.has(b.id));
+        if (subset.length === 0) return;
+        const payload = buildExportPayload(subset);
+        const text = JSON.stringify(payload, null, 2);
+        const blob = new Blob([text], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+        const ymd = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `ace-input-deck-selection-${ymd}.json`;
+        document.body.appendChild(a);
+        a.click();
+        setTimeout(() => { a.remove(); URL.revokeObjectURL(url); }, 100);
+        try { globalThis.toastr?.success?.(t('aid.toast.exported', { count: subset.length })); } catch { /* ignore */ }
+        return;
+    }
+    if (action === 'delete') {
+        const ok = globalThis.confirm?.(t('aid.editor.bulk_delete_confirm', { count: ids.size }));
+        if (!ok) return;
+        const next = (settings.buttons || []).filter(b => !ids.has(b.id)).map((b, i) => ({ ...b, order: i }));
+        _selected.clear();
+        saveSettings({ buttons: next });
+        // Drop orphan group-icon entries after a bulk delete.
+        pruneOrphanGroups();
+    }
 }
 
 function newBlank() {
@@ -52,9 +218,57 @@ function buildToolbar() {
     return tb;
 }
 
+function buildBulkBar(totalRows) {
+    const n = _selected.size;
+    const bar = el('div', {
+        class: `aid--bulk-bar${n > 0 ? ' aid--bulk-bar-active' : ''}`,
+        attrs: { role: 'toolbar', 'aria-label': t('aid.editor.bulk_bar_label') },
+    });
+
+    const counter = el('span', { class: 'aid--bulk-count' }, t('aid.editor.bulk_count', { count: n }));
+    bar.appendChild(counter);
+
+    const mkBtn = (action, labelKey, iconClass, danger = false) => {
+        const b = el('button', {
+            type: 'button',
+            class: `aid--ghost-btn${danger ? ' aid--ghost-btn-danger' : ''}`,
+            dataset: { aidBulkAction: action },
+        });
+        b.append(el('i', { class: iconClass }), el('span', { i18n: labelKey }, t(labelKey)));
+        if (n === 0 && action !== 'select-all') b.disabled = true;
+        return b;
+    };
+
+    const allSelected = totalRows > 0 && n === totalRows;
+    const selectAllBtn = mkBtn(
+        allSelected ? 'clear' : 'select-all',
+        allSelected ? 'aid.editor.bulk_clear' : 'aid.editor.bulk_select_all',
+        allSelected ? 'fa-solid fa-square' : 'fa-solid fa-check-double',
+    );
+    selectAllBtn.disabled = totalRows === 0;
+    bar.appendChild(selectAllBtn);
+
+    bar.appendChild(mkBtn('enable', 'aid.editor.bulk_enable', 'fa-solid fa-toggle-on'));
+    bar.appendChild(mkBtn('disable', 'aid.editor.bulk_disable', 'fa-solid fa-toggle-off'));
+    bar.appendChild(mkBtn('export', 'aid.editor.bulk_export', 'fa-solid fa-download'));
+    bar.appendChild(mkBtn('delete', 'aid.editor.bulk_delete', 'fa-solid fa-trash', true));
+
+    return bar;
+}
+
 function buildRow(btn) {
     const row = el('div', { class: 'aid--erow', dataset: { aidRowId: btn.id }, attrs: { tabindex: '0' } });
     row.draggable = true;
+    if (_selected.has(btn.id)) row.classList.add('aid--erow-selected');
+
+    const selWrap = el('label', {
+        class: 'aid--erow-select',
+        attrs: { title: t('aid.editor.bulk_select_row'), 'aria-label': t('aid.editor.bulk_select_row') },
+    });
+    const selBox = el('input', { type: 'checkbox', dataset: { aidRowSelect: '' } });
+    selBox.checked = _selected.has(btn.id);
+    selWrap.appendChild(selBox);
+    row.appendChild(selWrap);
 
     const handle = el('span', {
         class: 'aid--drag-handle',
@@ -76,7 +290,16 @@ function buildRow(btn) {
     const meta = el('div', { class: 'aid--erow-meta' });
     meta.appendChild(el('span', { class: 'aid--erow-face' }, btn.name));
     if (btn.description) meta.appendChild(el('span', { class: 'aid--erow-desc' }, btn.description));
-    if (btn.group) meta.appendChild(el('span', { class: 'aid--erow-group' }, btn.group));
+    if (btn.group) {
+        const groupEl = el('span', { class: 'aid--erow-group' });
+        const icon = getGroupIcon(btn.group);
+        if (icon) {
+            const ic = el('i', { class: `${icon} aid--erow-group-icon`, attrs: { 'aria-hidden': 'true' } });
+            groupEl.appendChild(ic);
+        }
+        groupEl.appendChild(document.createTextNode(btn.group));
+        meta.appendChild(groupEl);
+    }
     row.appendChild(meta);
 
     const actions = el('div', { class: 'aid--erow-actions' });
@@ -108,6 +331,39 @@ function buildEditForm(btn) {
     const content = el('textarea', { class: 'aid--textarea', attrs: { rows: '3', maxlength: '4096' }, dataset: { aidEditField: 'content' } });
     content.value = btn.content;
     const group = el('input', { type: 'text', class: 'aid--input', value: btn.group, attrs: { maxlength: '32', placeholder: t('aid.editor.field_group_placeholder'), list: 'aid--group-list' }, dataset: { aidEditField: 'group' } });
+    const groupRow = el('div', { class: 'aid--group-input-row' });
+    const groupIconBtn = el('button', {
+        type: 'button',
+        class: 'aid--group-icon-btn',
+        dataset: { aidEditAction: 'pick-group-icon' },
+        attrs: { title: t('aid.editor.group_icon'), 'aria-label': t('aid.editor.group_icon') },
+    });
+    const refreshGroupIconPreview = () => {
+        groupIconBtn.replaceChildren();
+        const cur = btn.group ? getGroupIcon(btn.group) : '';
+        if (cur) {
+            const ic = el('i', { class: cur, attrs: { 'aria-hidden': 'true' } });
+            groupIconBtn.appendChild(ic);
+        } else {
+            const ic = el('i', { class: 'fa-solid fa-plus aid--group-icon-empty', attrs: { 'aria-hidden': 'true' } });
+            groupIconBtn.appendChild(ic);
+        }
+    };
+    refreshGroupIconPreview();
+    const syncIconBtnState = () => {
+        const hasGroup = String(group.value || '').trim().length > 0;
+        groupIconBtn.disabled = !hasGroup;
+        groupIconBtn.classList.toggle('aid--group-icon-btn-disabled', !hasGroup);
+    };
+    syncIconBtnState();
+    // Mirror typed group name back onto the local proxy so the icon preview
+    // can reflect the just-typed name without committing the form.
+    group.addEventListener('input', () => {
+        btn.group = group.value;
+        syncIconBtnState();
+        refreshGroupIconPreview();
+    });
+    groupRow.append(group, groupIconBtn);
     const cursor = el('input', { type: 'number', class: 'aid--input aid--input-num', value: String(btn.cursor_position | 0), attrs: { min: '0', step: '1' }, dataset: { aidEditField: 'cursor_position' } });
 
     const insWrap = el('div', { class: 'aid--seg', attrs: { role: 'radiogroup' } });
@@ -155,7 +411,7 @@ function buildEditForm(btn) {
         field('aid.editor.field_name', name),
         field('aid.editor.field_description', desc),
         field('aid.editor.field_content', content),
-        field('aid.editor.field_group', group),
+        field('aid.editor.field_group', groupRow),
         el('div', { class: 'aid--field-row' }, [
             field('aid.editor.field_cursor', cursor),
             field('aid.editor.field_insert_position', insWrap),
@@ -186,8 +442,15 @@ function render() {
     _editorRoot.appendChild(buildToolbar());
 
     if (buttons.length === 0) {
+        if (_selected.size) _selected.clear();
         _editorRoot.appendChild(el('div', { class: 'aid--empty', i18n: 'aid.settings.buttons_empty' }, t('aid.settings.buttons_empty')));
     } else {
+        // Drop selections referencing buttons that no longer exist.
+        const ids = new Set(buttons.map(b => b.id));
+        for (const sid of [..._selected]) if (!ids.has(sid)) _selected.delete(sid);
+
+        _editorRoot.appendChild(buildBulkBar(buttons.length));
+
         const list = el('div', { class: 'aid--erow-list' });
         for (const b of buttons) {
             list.appendChild(buildRow(b));
@@ -321,12 +584,27 @@ function attachHandlers() {
             return;
         }
 
+        const bulkAct = target.closest('[data-aid-bulk-action]');
+        if (bulkAct) {
+            ev.preventDefault();
+            const action = bulkAct.getAttribute('data-aid-bulk-action');
+            await doBulk(action);
+            return;
+        }
+
         const editAct = target.closest('[data-aid-edit-action]');
         if (editAct) {
             ev.preventDefault();
+            const action = editAct.getAttribute('data-aid-edit-action');
+            if (action === 'pick-group-icon') {
+                const form = editAct.closest('[data-aid-edit-form-id]');
+                const groupInput = form?.querySelector('[data-aid-edit-field="group"]');
+                openIconPicker(groupInput?.value);
+                return;
+            }
             const form = editAct.closest('[data-aid-edit-form-id]');
             if (!form) return;
-            if (editAct.getAttribute('data-aid-edit-action') === 'save') commitEdit(form);
+            if (action === 'save') commitEdit(form);
             else cancelEdit();
             return;
         }
@@ -375,13 +653,23 @@ function attachHandlers() {
     _editorRoot.addEventListener('change', (ev) => {
         const node = ev.target;
         if (!(node instanceof HTMLInputElement)) return;
-        if (!node.hasAttribute('data-aid-row-enabled')) return;
         const rowEl = findRowEl(node);
         if (!rowEl) return;
         const id = rowEl.getAttribute('data-aid-row-id');
-        const settings = getSettings();
-        const next = (settings.buttons || []).map(b => b.id === id ? { ...b, enabled: node.checked } : b);
-        saveSettings({ buttons: next });
+
+        if (node.hasAttribute('data-aid-row-select')) {
+            if (node.checked) _selected.add(id);
+            else _selected.delete(id);
+            rowEl.classList.toggle('aid--erow-selected', node.checked);
+            refreshBulkBar();
+            return;
+        }
+
+        if (node.hasAttribute('data-aid-row-enabled')) {
+            const settings = getSettings();
+            const next = (settings.buttons || []).map(b => b.id === id ? { ...b, enabled: node.checked } : b);
+            saveSettings({ buttons: next });
+        }
     });
 
     // HTML5 drag-and-drop (desktop / mouse).
@@ -483,6 +771,50 @@ function attachHandlers() {
     };
     _editorRoot.addEventListener('pointerup', endTouchDrag);
     _editorRoot.addEventListener('pointercancel', endTouchDrag);
+
+    // Picker modal mounts on document.body, so its events use document.
+    document.addEventListener('click', onDocClickForPicker);
+    document.addEventListener('keydown', onDocKeydownForPicker);
+}
+
+function onDocClickForPicker(ev) {
+    if (!_iconPickerCtx) return;
+    const target = ev.target instanceof Element ? ev.target : null;
+    if (!target) return;
+
+    const overlay = target.closest('[data-aid-icon-picker]');
+    if (overlay && !target.closest('.aid--modal')) {
+        ev.preventDefault();
+        closeIconPicker();
+        return;
+    }
+
+    const closeAct = target.closest('[data-aid-icon-picker-action]');
+    if (closeAct?.getAttribute('data-aid-icon-picker-action') === 'close') {
+        ev.preventDefault();
+        closeIconPicker();
+        return;
+    }
+
+    const cell = target.closest('[data-aid-icon-pick]');
+    if (!cell) return;
+    ev.preventDefault();
+    const value = cell.getAttribute('data-aid-icon-pick');
+    const groupName = _iconPickerCtx.groupName;
+    if (value === '__none__') {
+        setGroupIcon(groupName, '');
+    } else {
+        setGroupIcon(groupName, value);
+    }
+    closeIconPicker();
+}
+
+function onDocKeydownForPicker(ev) {
+    if (!_iconPickerCtx) return;
+    if (ev.key === 'Escape') {
+        ev.preventDefault();
+        closeIconPicker();
+    }
 }
 
 export function mountButtonsEditor(host) {
@@ -492,4 +824,11 @@ export function mountButtonsEditor(host) {
 
     onSettingsChange(() => render());
     onLocaleChange(() => render());
+
+    // Hygiene: drop the document-level picker listeners on page unload.
+    window.addEventListener('pagehide', () => {
+        document.removeEventListener('click', onDocClickForPicker);
+        document.removeEventListener('keydown', onDocKeydownForPicker);
+        closeIconPicker();
+    }, { once: true });
 }

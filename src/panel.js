@@ -4,7 +4,7 @@
 import { t, onLocaleChange } from './i18n.js';
 import { performInsert } from './insert.js';
 import { pushRecent, resolveRecent } from './recent.js';
-import { getSettings, saveSettings, onSettingsChange } from './settings.js';
+import { getSettings, saveSettings, onSettingsChange, getGroupIcon } from './settings.js';
 
 const PANEL_CLASS = 'aid--panel';
 const REFERENCE_SCRIPT_ID = 'cb0f5b5d-4b2e-4581-a011-2ad29d1d18ff';
@@ -102,7 +102,7 @@ function buildGroupChips(groups, recentVisible) {
     wrap.setAttribute('role', 'radiogroup');
     wrap.setAttribute('aria-label', t('aid.a11y.group_chips'));
 
-    const mkChip = (id, label) => {
+    const mkChip = (id, label, iconClass) => {
         const b = document.createElement('button');
         b.type = 'button';
         b.className = 'aid--chip';
@@ -110,16 +110,23 @@ function buildGroupChips(groups, recentVisible) {
         b.setAttribute('data-aid-group', id);
         b.setAttribute('aria-checked', String(STATE.activeGroup === id));
         if (STATE.activeGroup === id) b.classList.add('aid--chip-active');
+        if (iconClass) {
+            const ic = document.createElement('i');
+            ic.className = `${iconClass} aid--chip-icon`;
+            ic.setAttribute('aria-hidden', 'true');
+            b.appendChild(ic);
+        }
         const sp = document.createElement('span');
         sp.textContent = label;
         b.appendChild(sp);
         return b;
     };
 
-    wrap.appendChild(mkChip('__all__', t('aid.panel.group_all')));
-    if (recentVisible) wrap.appendChild(mkChip('__recent__', t('aid.panel.group_recent')));
+    // Built-in chips: All gets a generic icon, Recent gets a clock.
+    wrap.appendChild(mkChip('__all__', t('aid.panel.group_all'), 'fa-solid fa-layer-group'));
+    if (recentVisible) wrap.appendChild(mkChip('__recent__', t('aid.panel.group_recent'), 'fa-solid fa-clock-rotate-left'));
     for (const g of groups) {
-        wrap.appendChild(mkChip(g, g));
+        wrap.appendChild(mkChip(g, g, getGroupIcon(g)));
     }
     return wrap;
 }

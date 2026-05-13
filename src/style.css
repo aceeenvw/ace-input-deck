@@ -130,6 +130,7 @@
     flex: 0 0 auto;
     display: inline-flex;
     align-items: center;
+    gap: 4px;
     height: 22px;
     padding: 0 8px;
     border-radius: var(--aid-radius-pill);
@@ -143,6 +144,7 @@
     transition: background var(--aid-anim), color var(--aid-anim), border-color var(--aid-anim);
     white-space: nowrap;
 }
+.aid--chip-icon { font-size: 10px; opacity: 0.85; }
 .aid--chip:hover { color: var(--aid-fg); border-color: color-mix(in oklab, var(--aid-fg) 30%, transparent); }
 .aid--chip-active {
     color: var(--aid-accent-fg);
@@ -519,6 +521,174 @@
     gap: 12px;
     flex-wrap: wrap;
 }
+
+/* Bulk action bar (sits between toolbar and row list). */
+.aid--bulk-bar {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-wrap: wrap;
+    padding: 6px 8px;
+    margin: 6px 0 4px;
+    border: 1px solid var(--aid-border);
+    border-radius: var(--aid-radius-sm);
+    background: color-mix(in oklab, var(--aid-bg-elev) 70%, transparent);
+    transition: border-color var(--aid-anim), background var(--aid-anim);
+}
+.aid--bulk-bar-active {
+    border-color: color-mix(in oklab, var(--aid-border) 50%, var(--aid-accent) 50%);
+    background: color-mix(in oklab, var(--aid-bg-elev) 60%, var(--aid-accent) 10%);
+}
+.aid--bulk-count {
+    font-size: 12px;
+    color: var(--aid-fg-muted);
+    margin-right: auto;
+    padding: 0 4px;
+}
+.aid--bulk-bar .aid--ghost-btn {
+    padding: 4px 10px;
+    font-size: 12px;
+    min-height: 28px;
+}
+.aid--ghost-btn-danger:not(:disabled):hover {
+    color: var(--aid-danger);
+    border-color: var(--aid-danger);
+}
+.aid--ghost-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+/* Group icon picker button next to the group input in the edit form. */
+.aid--group-input-row {
+    display: flex;
+    gap: 6px;
+    align-items: stretch;
+}
+.aid--group-input-row .aid--input { flex: 1 1 auto; min-width: 0; }
+.aid--group-icon-btn {
+    flex: 0 0 auto;
+    width: 36px;
+    height: 36px;
+    border: 1px solid var(--aid-border);
+    border-radius: var(--aid-radius-sm);
+    background: var(--aid-bg-elev);
+    color: var(--aid-fg);
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    transition: background var(--aid-anim), border-color var(--aid-anim), color var(--aid-anim);
+}
+.aid--group-icon-btn:hover:not(:disabled) {
+    border-color: var(--aid-accent);
+    color: var(--aid-accent);
+}
+.aid--group-icon-btn-disabled,
+.aid--group-icon-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+.aid--group-icon-empty { opacity: 0.55; }
+
+/* Icon picker modal. */
+.aid--modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(0, 0, 0, 0.55);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    animation: aidModalFade var(--aid-anim) both;
+}
+@keyframes aidModalFade {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+.aid--modal {
+    width: min(420px, 100%);
+    max-height: min(80vh, 600px);
+    background: var(--aid-bg);
+    border: 1px solid var(--aid-border);
+    border-radius: var(--aid-radius);
+    box-shadow: 0 24px 48px -12px rgba(0, 0, 0, 0.4);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+.aid--modal-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--aid-border);
+    background: color-mix(in oklab, var(--aid-bg) 70%, var(--aid-fg) 5%);
+}
+.aid--modal-head h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--aid-fg);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.aid--modal-body {
+    padding: 12px 14px;
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.aid--icon-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 8px;
+}
+.aid--icon-cell {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    aspect-ratio: 1 / 1;
+    padding: 6px;
+    background: var(--aid-bg-elev);
+    border: 1px solid var(--aid-border);
+    border-radius: var(--aid-radius-sm);
+    color: var(--aid-fg);
+    cursor: pointer;
+    font-size: 18px;
+    transition: background var(--aid-anim), border-color var(--aid-anim), transform 80ms ease-out;
+}
+.aid--icon-cell:hover {
+    border-color: var(--aid-accent);
+    background: color-mix(in oklab, var(--aid-bg-elev) 70%, var(--aid-accent) 12%);
+}
+.aid--icon-cell:active { transform: scale(0.95); }
+.aid--icon-cell:focus-visible {
+    outline: 2px solid var(--aid-accent);
+    outline-offset: 2px;
+}
+.aid--icon-cell-active {
+    border-color: var(--aid-accent);
+    background: color-mix(in oklab, var(--aid-bg-elev) 60%, var(--aid-accent) 20%);
+    color: var(--aid-accent);
+}
+.aid--icon-cell-none {
+    grid-column: span 4;
+    aspect-ratio: auto;
+    flex-direction: row;
+    gap: 8px;
+    padding: 8px 12px;
+    font-size: 14px;
+}
+.aid--icon-cell-label {
+    font-size: 11px;
+    color: var(--aid-fg-muted);
+}
 .aid--count {
     color: var(--aid-fg-muted);
     font-size: 12px;
@@ -537,7 +707,7 @@
 }
 .aid--erow {
     display: grid;
-    grid-template-columns: auto auto 1fr auto;
+    grid-template-columns: auto auto auto 1fr auto;
     align-items: center;
     gap: 10px;
     padding: 8px 10px;
@@ -553,6 +723,33 @@
 }
 .aid--erow-dragging { opacity: 0.5; }
 .aid--erow-over { border-color: var(--aid-accent); background: color-mix(in oklab, var(--aid-bg-elev) 80%, var(--aid-accent) 12%); }
+.aid--erow-selected {
+    background: color-mix(in oklab, var(--aid-bg-elev) 70%, var(--aid-accent) 14%);
+    border-color: color-mix(in oklab, var(--aid-border) 50%, var(--aid-accent) 50%);
+}
+
+.aid--erow-select {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    cursor: pointer;
+    user-select: none;
+}
+.aid--erow-select input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    accent-color: var(--aid-accent);
+    cursor: pointer;
+    margin: 0;
+}
+
+.aid--erow-group-icon {
+    margin-right: 4px;
+    color: var(--aid-fg-muted);
+    font-size: 11px;
+}
 
 .aid--drag-handle {
     display: inline-flex;
@@ -716,7 +913,7 @@
 @media (max-width: 640px) {
     .aid--field-row { grid-template-columns: 1fr; }
     .aid--erow {
-        grid-template-columns: auto auto 1fr;
+        grid-template-columns: auto auto auto 1fr;
         grid-template-rows: auto auto;
         gap: 8px;
         padding: 6px 8px;
@@ -738,13 +935,17 @@
     .aid--card-body { padding: 10px; gap: 8px; }
     .aid--card-head { padding: 8px 12px; }
     .aid--erow {
-        grid-template-columns: auto auto 1fr;
+        grid-template-columns: auto auto auto 1fr;
         gap: 6px;
         padding: 6px;
     }
     .aid--erow-face { max-width: 120px; font-size: 12px; }
     .aid--erow-desc { font-size: 12px; }
     .aid--erow-group { display: none; }
+    .aid--bulk-bar { padding: 4px; }
+    .aid--bulk-bar .aid--ghost-btn span { display: none; }
+    .aid--icon-grid { grid-template-columns: repeat(3, 1fr); }
+    .aid--icon-cell-none { grid-column: span 3; }
     .aid--field-row { gap: 8px; }
     .aid--input, .aid--select, .aid--textarea {
         font-size: 16px;
@@ -785,6 +986,12 @@
     .aid--drag-handle { width: 32px; height: 44px; touch-action: none; }
     /* Bigger row action buttons */
     .aid--erow-actions .aid--icon-btn { width: 40px; height: 40px; }
+    /* Bigger selection checkbox for touch */
+    .aid--erow-select { width: 32px; height: 32px; }
+    .aid--erow-select input[type="checkbox"] { width: 20px; height: 20px; }
+    /* Icon picker cells need comfortable taps */
+    .aid--icon-cell { min-height: 56px; }
+    .aid--group-icon-btn { width: 44px; height: 44px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -799,7 +1006,11 @@
     .aid--icon-btn,
     .aid--chip,
     .aid--seg-btn,
-    .aid--erow {
+    .aid--erow,
+    .aid--bulk-bar,
+    .aid--modal-overlay,
+    .aid--icon-cell,
+    .aid--group-icon-btn {
         transition: none !important;
         animation: none !important;
     }
