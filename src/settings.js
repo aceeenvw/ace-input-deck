@@ -521,7 +521,7 @@ function attachHandlers(root) {
 }
 
 export function mountSettingsPanel() {
-    const host = document.getElementById('extensions_settings2') || document.getElementById('extensions_settings');
+    const host = document.getElementById('extensions_settings') || document.getElementById('extensions_settings2');
     if (!host) return null;
     if (host.querySelector('.aid--settings')) return host.querySelector('.aid--settings');
 

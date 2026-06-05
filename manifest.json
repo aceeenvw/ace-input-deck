@@ -1,6 +1,6 @@
 {
     "display_name": "\u22B9 ACE INPUT DECK \u22B9",
-    "loading_order": 999,
+    "loading_order": 20,
     "requires": [],
     "optional": [],
     "js": "dist/index.js",
