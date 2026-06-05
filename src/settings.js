@@ -6,7 +6,6 @@ import { getDefaultButtons, PRESETS, instantiatePreset } from './presets.js';
 import { mountButtonsEditor } from './buttons-editor.js';
 import { downloadJson, readJsonFile, validateImport } from './importexport.js';
 import { runMigrations, LATEST_SCHEMA } from './migrations.js';
-import { META } from './build-info.js';
 
 const KEY = 'aceInputDeck';
 const STORAGE_SOFT_WARN_BYTES = 256 * 1024;
@@ -345,21 +344,6 @@ function buildIoSection() {
     return sec;
 }
 
-function buildAboutSection() {
-    const sec = el('section', { class: 'aid--card', dataset: { section: 'about' } });
-    sec.append(
-        el('header', { class: 'aid--card-head' }, [
-            el('i', { class: 'fa-solid fa-circle-info' }),
-            el('h4', { i18n: 'aid.settings.section_about' }, t('aid.settings.section_about')),
-        ]),
-        el('div', { class: 'aid--card-body aid--about' }, [
-            el('div', { class: 'aid--about-line' }, t('aid.settings.about_version', { version: META.version })),
-            el('div', { class: 'aid--about-line aid--about-muted' }, t('aid.settings.about_author', { author: META.author })),
-        ]),
-    );
-    return sec;
-}
-
 function buildSettingsTree() {
     const root = el('div', { class: 'aid--settings inline-drawer' });
     const head = el('div', { class: 'inline-drawer-toggle inline-drawer-header' }, [
@@ -382,7 +366,6 @@ function buildSettingsTree() {
         buildButtonsSection(),
         buildPresetsSection(),
         buildIoSection(),
-        buildAboutSection(),
     );
 
     root.append(head, content);
